@@ -1,7 +1,7 @@
 -- =============================================================
--- TecnoCaixa - Produtos de exemplo (PostgreSQL / Neon)
+-- TechnoCaixa - Produtos de exemplo (PostgreSQL / Neon)
 -- Rode DEPOIS do schema.sql, uma única vez.
--- Cadastra os 26 produtos que têm foto em static/Fotos e registra
+-- Cadastra os 37 produtos que têm foto em static/Fotos e registra
 -- o estoque inicial de cada um como movimento de entrada.
 -- =============================================================
 
@@ -23,8 +23,19 @@ WITH v (sku, nome, categoria, quantidade, minimo, custo, preco, local, foto) AS 
     ('PE-005', 'Placa de Vídeo Flagship Kronos Hardware GeForce RTX 5090 Hall of Fame Extreme 32GB GDDR7 512-bit', 'Peças', 2, 1, 16000.00, 19999.90, 'Cofre D1', 'Fotos/Placa de Vídeo Flagship Kronos Hardware GeForce RTX 5090 Hall of Fame Extreme 32GB GDDR7 512-bit.jpg'),
     ('PE-006', 'Fonte Kronos Hardware VoltMaster 850W 80 Plus Gold Full Modular ATX 3.1', 'Peças', 10, 4, 600.00, 799.90, 'Armário C3', 'Fotos/Fonte Kronos Hardware VoltMaster 850W 80 Plus Gold Full Modular ATX 3.1.jpg'),
     ('PE-007', 'Water Cooler Kronos Hardware HydroVision 360 Pro LCD IPS 2.8pol 360mm ARGB', 'Peças', 3, 3, 850.00, 1199.90, 'Armário C3', 'Fotos/Water Cooler Kronos Hardware HydroVision 360 Pro LCD IPS 2.8pol 360mm ARGB.jpg'),
+    ('PE-008', 'Kit Memória RAM Nexus Core Stealth 16GB (2x8GB) DDR4 3200MHz CL16', 'Peças', 16, 5, 220.00, 319.90, 'Armário C4', 'Fotos/Kit Memória RAM Nexus Core Stealth 16GB (2x8GB) DDR4 3200MHz CL16.jpg'),
+    ('PE-009', 'Kit Memória RAM Nexus Core Prism RGB 32GB (2x16GB) DDR5 6000MHz CL30', 'Peças', 10, 4, 720.00, 999.90, 'Armário C4', 'Fotos/Kit Memória RAM Nexus Core Prism RGB 32GB (2x16GB) DDR5 6000MHz CL30.jpg'),
+    ('PE-010', 'Kit Memória RAM Nexus Core Titanium Pro 64GB (2x32GB) DDR5 6400MHz CL32', 'Peças', 4, 2, 1400.00, 1899.90, 'Armário C4', 'Fotos/Kit Memória RAM Nexus Core Titanium Pro 64GB (2x32GB) DDR5 6400MHz CL32.jpg'),
+    ('PE-011', 'SSD Nexus Core Velocity E4 1TB M.2 NVMe PCIe 4.0', 'Peças', 18, 6, 330.00, 469.90, 'Armário C5', 'Fotos/SSD Nexus Core Velocity E4 1TB M.2 NVMe PCIe 4.0.jpg'),
+    ('PE-012', 'SSD Nexus Core HyperDrive Pro 2TB M.2 NVMe PCIe 4.0 + DRAM', 'Peças', 8, 3, 780.00, 1099.90, 'Armário C5', 'Fotos/SSD Nexus Core HyperDrive Pro 2TB M.2 NVMe PCIe 4.0 + DRAM.jpg'),
+    ('PE-013', 'SSD Flagship Nexus Core WarpSpeed Gen5 2TB M.2 NVMe PCIe 5.0', 'Peças', 3, 2, 1550.00, 2199.90, 'Cofre D2', 'Fotos/SSD Flagship Nexus Core WarpSpeed Gen5 2TB M.2 NVMe PCIe 5.0.jpg'),
+    ('PE-014', 'Gabinete Gamer Kronos Hardware CrystalView Panoramic Dual-Chamber Mid-Tower Aquário', 'Peças', 7, 3, 490.00, 699.90, 'Galpão A3', 'Fotos/Gabinete Gamer Kronos Hardware CrystalView Panoramic Dual-Chamber Mid-Tower Aquário.jpg'),
+    ('PE-015', 'Gabinete Gamer Kronos Hardware WindStorm Mesh Airflow + 4 Fans 140mm ARGB', 'Peças', 11, 4, 340.00, 479.90, 'Galpão A3', 'Fotos/Gabinete Gamer Kronos Hardware WindStorm Mesh Airflow + 4 Fans 140mm ARGB.jpg'),
     ('PF-001', 'Mouse Gamer Sem Fio Aether Labs FeatherLight X Pro 8K Carbon', 'Periféricos', 15, 5, 450.00, 649.90, 'Prateleira E1', 'Fotos/Mouse Gamer Sem Fio Aether Labs FeatherLight X Pro 8K Carbon.jpg'),
     ('PF-002', 'Webcam Profissional VoxStudio ClearVision 4K60 AI Gimbal HDR', 'Periféricos', 4, 2, 1300.00, 1799.90, 'Prateleira E1', 'Fotos/Webcam Profissional VoxStudio ClearVision 4K60 AI Gimbal HDR.jpg'),
+    ('PF-003', 'Headset Sem Fio VoxStudio NovaPlanar Pro Wireless ANC + Hot-Swap Battery', 'Periféricos', 5, 2, 1350.00, 1899.90, 'Prateleira E2', 'Fotos/Headset Sem Fio VoxStudio NovaPlanar Pro Wireless ANC + Hot-Swap Battery.jpg'),
+    ('PF-004', 'Headset Gamer VoxStudio CloudCore V2 7.1 Surround USB', 'Periféricos', 14, 5, 260.00, 379.90, 'Prateleira E2', 'Fotos/Headset Gamer VoxStudio CloudCore V2 7.1 Surround USB.jpg'),
+    ('PF-005', 'Fone In-Ear Monitor (IEM) Gamer & Audiófilo VoxStudio AriaStage Hexa Hybrid', 'Periféricos', 9, 3, 350.00, 499.90, 'Prateleira E3', 'Fotos/Fone In-Ear Monitor (IEM) Gamer & Audiófilo VoxStudio AriaStage Hexa Hybrid.jpg'),
     ('TC-001', 'Teclado Mecânico Gamer Aether Labs Phantom 60 Mini RGB', 'Periféricos', 18, 6, 220.00, 299.90, 'Prateleira F1', 'Fotos/Teclado Mecânico Gamer Aether Labs Phantom 60 Mini RGB.jpg'),
     ('TC-002', 'Teclado Mecânico Gamer Aether Labs Imperium 100 Full-Size RGB', 'Periféricos', 11, 5, 320.00, 449.90, 'Prateleira F1', 'Fotos/Teclado Mecânico Gamer Aether Labs Imperium 100 Full-Size RGB.jpg'),
     ('TC-003', 'Teclado Mecânico Custom Aether Labs NovaKey 65 Wireless Gasket', 'Periféricos', 6, 3, 480.00, 649.90, 'Prateleira F2', 'Fotos/Teclado Mecânico Custom Aether Labs NovaKey 65 Wireless Gasket.jpg'),

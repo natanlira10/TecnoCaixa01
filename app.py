@@ -42,7 +42,7 @@ EMAIL_VALIDO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 # ---------------------------------------------------------------
-# TecnoCaixa - Vitrine e-commerce, painel admin e chatbots IA
+# TechnoCaixa - Vitrine e-commerce, painel admin e chatbots IA
 # ---------------------------------------------------------------
 
 
@@ -614,12 +614,13 @@ def api_chat_admin():
 # ---------- Preparação inicial do banco ----------
 
 def cadastrar_produtos_iniciais():
-    """Popula o catálogo inicial se o banco ainda não tiver nenhum produto."""
-    if Produto.query.count() > 0:
-        return
-
+    """Cadastra os produtos iniciais que ainda não existem no banco (pelo SKU)."""
+    skus_existentes = {p.sku for p in Produto.query.all()}
     categorias_por_nome = {c.nome: c for c in Categoria.query.all()}
+
     for item in PRODUTOS_INICIAIS:
+        if item["sku"] in skus_existentes:
+            continue
         categoria = categorias_por_nome.get(item["categoria"])
         if not categoria:
             continue
@@ -651,6 +652,8 @@ def garantir_usuarios_padrao():
             tipo="admin",
         )
         db.session.add(admin)
+    elif existe_admin.nome == "Administrador TecnoCaixa":
+        existe_admin.nome = Config.ADMIN_NOME
 
     email_demo = "cliente@tecnocaixa.com"
     if not Usuario.query.filter(db.func.lower(Usuario.email) == email_demo).first():
