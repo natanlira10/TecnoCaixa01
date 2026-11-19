@@ -73,6 +73,52 @@ CREATE TABLE contato (
 );
 
 
+-- Usuários do sistema: clientes da vitrine e administradores
+CREATE TABLE usuario (
+    id          SERIAL       PRIMARY KEY,
+    nome        VARCHAR(100) NOT NULL,
+    email       VARCHAR(120) NOT NULL UNIQUE,
+    senha_hash  VARCHAR(255) NOT NULL,
+    tipo        VARCHAR(10)  NOT NULL DEFAULT 'cliente',
+    criado_em   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT ck_usuario_tipo CHECK (tipo IN ('cliente', 'admin'))
+);
+
+
+-- Pedidos simulados feitos pelos clientes logados na vitrine
+CREATE TABLE pedido (
+    id               SERIAL         PRIMARY KEY,
+    usuario_id       INTEGER        NOT NULL REFERENCES usuario (id),
+    data             TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
+    forma_pagamento  VARCHAR(20)    NOT NULL,
+    total            NUMERIC(12, 2) NOT NULL DEFAULT 0,
+    status           VARCHAR(20)    NOT NULL DEFAULT 'aprovado',
+    endereco         VARCHAR(200)   DEFAULT '',
+
+    CONSTRAINT ck_pedido_pagamento CHECK (forma_pagamento IN ('pix', 'cartao', 'boleto')),
+    CONSTRAINT ck_pedido_total     CHECK (total >= 0)
+);
+
+CREATE INDEX ix_pedido_usuario_id ON pedido (usuario_id);
+
+
+-- Itens comprados em cada pedido (1 pedido : N itens, 1 produto : N itens)
+CREATE TABLE item_pedido (
+    id              SERIAL         PRIMARY KEY,
+    pedido_id       INTEGER        NOT NULL REFERENCES pedido (id) ON DELETE CASCADE,
+    produto_id      INTEGER        NOT NULL REFERENCES produto (id) ON DELETE RESTRICT,
+    quantidade      INTEGER        NOT NULL,
+    preco_unitario  NUMERIC(12, 2) NOT NULL,
+
+    CONSTRAINT ck_item_pedido_quantidade CHECK (quantidade > 0),
+    CONSTRAINT ck_item_pedido_preco      CHECK (preco_unitario >= 0)
+);
+
+CREATE INDEX ix_item_pedido_pedido_id  ON item_pedido (pedido_id);
+CREATE INDEX ix_item_pedido_produto_id ON item_pedido (produto_id);
+
+
 -- Dados iniciais: categorias fixas
 INSERT INTO categoria (nome) VALUES
     ('Computadores'),

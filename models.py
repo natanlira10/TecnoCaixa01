@@ -7,10 +7,11 @@ db = SQLAlchemy()
 
 
 # ---------------------------------------------------------------
-# TecnoCaixa - Controle de estoque e faturamento
+# TecnoCaixa - Vitrine, controle de estoque e faturamento
 #
 # Modelo (3FN):
 #   categoria 1 ---- N produto 1 ---- N movimento
+#   usuario   1 ---- N pedido  1 ---- N item_pedido N ---- 1 produto
 #   contato (registros do formulário do site, sem relacionamento)
 # ---------------------------------------------------------------
 
@@ -55,6 +56,7 @@ class Produto(db.Model):
 
     categoria = db.relationship("Categoria", back_populates="produtos")
     movimentos = db.relationship("Movimento", back_populates="produto")
+    itens_pedido = db.relationship("ItemPedido", back_populates="produto")
 
     def to_dict(self):
         return {
@@ -68,6 +70,19 @@ class Produto(db.Model):
             "preco": float(self.preco or 0),
             "local": self.local or "",
             "foto": self.foto or ""
+        }
+
+    def to_vitrine_dict(self):
+        """Dados públicos exibidos aos clientes na vitrine (sem custo ou local interno)."""
+        return {
+            "id": self.id,
+            "sku": self.sku,
+            "nome": self.nome,
+            "categoria": self.categoria.nome,
+            "quantidade": self.quantidade,
+            "preco": float(self.preco or 0),
+            "foto": self.foto or "",
+            "disponivel": self.quantidade > 0
         }
 
 
@@ -132,4 +147,103 @@ class Contato(db.Model):
             "assunto": self.assunto,
             "mensagem": self.mensagem,
             "criadoEm": self.criado_em.isoformat()
+        }
+
+
+class Usuario(db.Model):
+    """Contas de clientes da vitrine e de administradores do painel."""
+    __tablename__ = "usuario"
+    __table_args__ = (
+        db.CheckConstraint("tipo IN ('cliente', 'admin')", name="ck_usuario_tipo"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    senha_hash = db.Column(db.String(255), nullable=False)
+    tipo = db.Column(db.String(10), nullable=False, default="cliente")  # cliente | admin
+    criado_em = db.Column(db.DateTime(timezone=True), nullable=False, default=agora)
+
+    pedidos = db.relationship("Pedido", back_populates="usuario")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "nome": self.nome,
+            "email": self.email,
+            "tipo": self.tipo
+        }
+
+
+class Pedido(db.Model):
+    """Compras simuladas realizadas pelos clientes logados na vitrine."""
+    __tablename__ = "pedido"
+    __table_args__ = (
+        db.CheckConstraint("forma_pagamento IN ('pix', 'cartao', 'boleto')", name="ck_pedido_pagamento"),
+        db.CheckConstraint("total >= 0", name="ck_pedido_total"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    usuario_id = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False, index=True)
+    data = db.Column(db.DateTime(timezone=True), nullable=False, default=agora)
+    forma_pagamento = db.Column(db.String(20), nullable=False)  # pix | cartao | boleto
+    total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    status = db.Column(db.String(20), nullable=False, default="aprovado")
+    endereco = db.Column(db.String(200), default="")
+
+    usuario = db.relationship("Usuario", back_populates="pedidos")
+    itens = db.relationship("ItemPedido", back_populates="pedido", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "codigo": f"TC-{self.id:04d}",
+            "data": self.data.isoformat(),
+            "clienteNome": self.usuario.nome,
+            "clienteEmail": self.usuario.email,
+            "formaPagamento": self.forma_pagamento,
+            "total": float(self.total or 0),
+            "status": self.status,
+            "endereco": self.endereco or "",
+            "itens": [item.to_dict() for item in self.itens]
+        }
+
+
+class ItemPedido(db.Model):
+    """Produtos incluídos em cada pedido da vitrine."""
+    __tablename__ = "item_pedido"
+    __table_args__ = (
+        db.CheckConstraint("quantidade > 0", name="ck_item_pedido_quantidade"),
+        db.CheckConstraint("preco_unitario >= 0", name="ck_item_pedido_preco"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(
+        db.Integer,
+        db.ForeignKey("pedido.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    produto_id = db.Column(
+        db.Integer,
+        db.ForeignKey("produto.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    quantidade = db.Column(db.Integer, nullable=False)
+    # Preço gravado no momento da compra para preservar o histórico do pedido
+    preco_unitario = db.Column(db.Numeric(12, 2), nullable=False)
+
+    pedido = db.relationship("Pedido", back_populates="itens")
+    produto = db.relationship("Produto", back_populates="itens_pedido")
+
+    def to_dict(self):
+        preco = float(self.preco_unitario or 0)
+        return {
+            "produtoId": self.produto_id,
+            "produtoNome": self.produto.nome,
+            "sku": self.produto.sku,
+            "quantidade": self.quantidade,
+            "precoUnitario": preco,
+            "subtotal": round(preco * self.quantidade, 2)
         }

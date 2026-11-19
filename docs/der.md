@@ -8,6 +8,9 @@ Cole o bloco abaixo em https://mermaid.live para gerar a imagem (PNG/SVG) para o
 erDiagram
     CATEGORIA ||--o{ PRODUTO : classifica
     PRODUTO   ||--o{ MOVIMENTO : possui
+    USUARIO   ||--o{ PEDIDO : realiza
+    PEDIDO    ||--|{ ITEM_PEDIDO : contem
+    PRODUTO   ||--o{ ITEM_PEDIDO : compoe
 
     CATEGORIA {
         int id PK
@@ -36,6 +39,30 @@ erDiagram
         numeric custo_unitario
         varchar observacao
     }
+    USUARIO {
+        int id PK
+        varchar nome
+        varchar email UK
+        varchar senha_hash
+        varchar tipo
+        timestamptz criado_em
+    }
+    PEDIDO {
+        int id PK
+        int usuario_id FK
+        timestamptz data
+        varchar forma_pagamento
+        numeric total
+        varchar status
+        varchar endereco
+    }
+    ITEM_PEDIDO {
+        int id PK
+        int pedido_id FK
+        int produto_id FK
+        int quantidade
+        numeric preco_unitario
+    }
     CONTATO {
         int id PK
         varchar nome
@@ -53,16 +80,25 @@ formulário do site, que são independentes do estoque.
 ## Modelo Lógico
 
 ```
-categoria (id PK, nome UNIQUE NOT NULL)
+categoria   (id PK, nome UNIQUE NOT NULL)
 
-produto   (id PK, sku NOT NULL, nome NOT NULL,
-           categoria_id FK -> categoria.id NOT NULL,
-           quantidade, minimo, custo, preco, local, foto, ativo)
+produto     (id PK, sku NOT NULL, nome NOT NULL,
+             categoria_id FK -> categoria.id NOT NULL,
+             quantidade, minimo, custo, preco, local, foto, ativo)
 
-movimento (id PK, data, produto_id FK -> produto.id NOT NULL,
-           tipo, quantidade, valor, custo_unitario, observacao)
+movimento   (id PK, data, produto_id FK -> produto.id NOT NULL,
+             tipo, quantidade, valor, custo_unitario, observacao)
 
-contato   (id PK, nome, email, telefone, assunto, mensagem, criado_em)
+usuario     (id PK, nome, email UNIQUE NOT NULL, senha_hash, tipo, criado_em)
+
+pedido      (id PK, usuario_id FK -> usuario.id NOT NULL,
+             data, forma_pagamento, total, status, endereco)
+
+item_pedido (id PK, pedido_id FK -> pedido.id NOT NULL,
+             produto_id FK -> produto.id NOT NULL,
+             quantidade, preco_unitario)
+
+contato     (id PK, nome, email, telefone, assunto, mensagem, criado_em)
 ```
 
 ## Relacionamentos
@@ -71,6 +107,9 @@ contato   (id PK, nome, email, telefone, assunto, mensagem, criado_em)
 |---|---|---|---|
 | categoria → produto | 1 : N | `produto.categoria_id` | Todo produto pertence a uma categoria |
 | produto → movimento | 1 : N | `movimento.produto_id` | `ON DELETE RESTRICT`: produto com histórico não é apagado de verdade |
+| usuario → pedido | 1 : N | `pedido.usuario_id` | Todo pedido pertence a um usuário cadastrado |
+| pedido → item_pedido | 1 : N | `item_pedido.pedido_id` | `ON DELETE CASCADE`: os itens pertencem ao pedido |
+| produto → item_pedido | 1 : N | `item_pedido.produto_id` | `ON DELETE RESTRICT`: preserva o histórico dos produtos comprados |
 
 ## Decisões de modelagem (para explicar no seminário)
 

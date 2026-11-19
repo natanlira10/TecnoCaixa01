@@ -20,3 +20,12 @@ class Config:
         "FLASK_DEBUG",
         "False"
     ).lower() == "true"
+
+    # Chave e modelo do chatbot Gemini (lidos do .env)
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "")
+
+    # Conta padrão do administrador (criada na primeira execução)
+    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@tecnocaixa.com")
+    ADMIN_SENHA = os.getenv("ADMIN_SENHA", "admin123")
+    ADMIN_NOME = os.getenv("ADMIN_NOME", "Administrador TecnoCaixa")

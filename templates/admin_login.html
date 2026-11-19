@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Administrador - TecnoCaixa</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    .caixa-login {
+      width: min(420px, 100%);
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    }
+    .topo-login {
+      background: #1e1e1e;
+      color: #fff;
+      padding: 22px 24px;
+      border-bottom: 4px solid #0077cc;
+    }
+    .topo-login h1 {
+      margin: 0 0 6px;
+      font-size: 1.35rem;
+    }
+    .topo-login p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #cbd5e1;
+    }
+    .corpo-login {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .erro-login {
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: #fdecec;
+      color: #a10000;
+      font-size: 0.9rem;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #444;
+    }
+    input {
+      padding: 10px 12px;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 400;
+    }
+    input:focus {
+      outline: 2px solid #0077cc;
+      border-color: #0077cc;
+    }
+    button {
+      padding: 11px 16px;
+      border: none;
+      border-radius: 6px;
+      background: #0077cc;
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0055a0;
+    }
+    .dica-admin {
+      margin: 0;
+      padding: 9px 11px;
+      border-radius: 6px;
+      background: #e8f1fa;
+      color: #0055a0;
+      font-size: 0.84rem;
+    }
+    .voltar-vitrine {
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    .voltar-vitrine a {
+      color: #0055a0;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .voltar-vitrine a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="caixa-login">
+    <div class="topo-login">
+      <h1>🖥️ TecnoCaixa · Painel Admin</h1>
+      <p>Área restrita para controle de estoque, faturamento e pedidos.</p>
+    </div>
+
+    <div class="corpo-login">
+      {% if erro %}
+        <p class="erro-login">{{ erro }}</p>
+      {% endif %}
+
+      <form method="POST" action="/admin/login">
+        <label>E-mail do administrador
+          <input type="email" name="email" value="{{ email }}" maxlength="120" required placeholder="admin@tecnocaixa.com" autofocus>
+        </label>
+
+        <label>Senha
+          <input type="password" name="senha" required placeholder="Digite sua senha">
+        </label>
+
+        <button type="submit">Entrar no Painel</button>
+      </form>
+
+      <p class="dica-admin">Acesso padrão: <strong>admin@tecnocaixa.com</strong> · senha: <strong>admin123</strong></p>
+
+      <div class="voltar-vitrine">
+        <a href="/">← Voltar para a vitrine da loja</a>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

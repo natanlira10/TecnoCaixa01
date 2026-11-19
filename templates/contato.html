@@ -5,19 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contato - TecnoCaixa</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='contato.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 </head>
 <body>
 
   <!-- Cabeçalho com logo e menu -->
   <header class="cabecalho">
     <div class="cabecalho-interno">
-      <a class="logo" href="/estoque">
+      <a class="logo" href="/">
         <span class="logo-icone">🖥️</span>
         TecnoCaixa
       </a>
       <nav class="menu">
-        <a href="/estoque">Estoque</a>
+        <a href="/">Vitrine</a>
         <a href="/contato" class="ativo">Contato</a>
+        <a href="/admin">Painel Admin</a>
       </nav>
     </div>
   </header>
@@ -140,5 +142,9 @@
       botao.disabled = false;
     });
   </script>
+
+  <!-- Widget do Chatbot da Vitrine -->
+  <div id="chatbot-widget" data-modo="vitrine"></div>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
 </body>
 </html>

@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TecnoCaixa - Controle de Estoque</title>
+  <title>TecnoCaixa - Painel Administrativo</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 </head>
 <body>
 
@@ -18,8 +19,15 @@
         <a href="#faturamento" data-aba="faturamento">💰 Faturamento</a>
         <a href="#produtos" data-aba="produtos">📦 Produtos</a>
         <a href="#movimentacoes" data-aba="movimentacoes">🔄 Movimentações</a>
+        <a href="#pedidos" data-aba="pedidos">🧾 Pedidos</a>
       </nav>
-      <p class="rodape-lateral">Controle de estoque</p>
+      <div class="rodape-lateral rodape-admin">
+        <p class="rodape-usuario">👤 {{ admin_nome }}</p>
+        <div class="links-admin">
+          <a href="/">🛒 Ver vitrine</a>
+          <a href="/admin/logout">🚪 Sair</a>
+        </div>
+      </div>
     </aside>
 
     <div class="conteudo">
@@ -137,6 +145,25 @@
             </table>
           </div>
         </section>
+
+        <!-- Pedidos recebidos pela vitrine -->
+        <section id="pedidos" class="aba" hidden>
+          <div class="tabela-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Data</th>
+                  <th>Cliente</th>
+                  <th>Pagamento</th>
+                  <th>Itens</th>
+                  <th class="num">Total</th>
+                </tr>
+              </thead>
+              <tbody id="corpo-pedidos"></tbody>
+            </table>
+          </div>
+        </section>
       </main>
 
     </div>
@@ -198,6 +225,10 @@
     </form>
   </dialog>
 
+  <!-- Widget do Chatbot Técnico do Admin (bolinha no canto inferior direito) -->
+  <div id="chatbot-widget" data-modo="admin"></div>
+
   <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
 </body>
 </html>

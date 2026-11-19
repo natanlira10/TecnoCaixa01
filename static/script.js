@@ -14,14 +14,17 @@ const NOMES_DAS_ABAS = {
   painel: 'Painel',
   faturamento: 'Faturamento',
   produtos: 'Produtos',
-  movimentacoes: 'Movimentações'
+  movimentacoes: 'Movimentações',
+  pedidos: 'Pedidos da Vitrine'
 };
 
 const NOMES_DOS_TIPOS = { entrada: 'Entrada', venda: 'Venda', saida: 'Saída' };
+const NOMES_PAGAMENTO = { pix: 'Pix', cartao: 'Cartão', boleto: 'Boleto' };
 
 // Aqui ficam os dados que vieram do banco
 let produtos = [];
 let movimentos = [];
+let pedidos = [];
 
 
 // ---------- Funções de ajuda ----------
@@ -51,8 +54,8 @@ function dataHora(data) {
 // Caminhos com espaço/acento (ex.: "Fotos/Mouse Gamer.jpg") precisam ser codificados
 function enderecoDaFoto(foto) {
   if (!foto) return '';
-  if (foto.startsWith('data:') || foto.startsWith('http')) return foto;
-  return encodeURI(foto);
+  if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('/')) return encodeURI(foto);
+  return '/' + encodeURI(foto);
 }
 
 // O produto está com estoque baixo?
@@ -74,6 +77,10 @@ async function enviarParaServidor(endereco, metodo, dados) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dados)
   });
+  if (resposta.status === 401) {
+    window.location.href = '/admin/login';
+    return false;
+  }
   const resultado = await resposta.json();
 
   if (!resposta.ok) {
@@ -83,13 +90,18 @@ async function enviarParaServidor(endereco, metodo, dados) {
   return true;
 }
 
-// Busca produtos e movimentações no banco e redesenha a página
+// Busca produtos, movimentações e pedidos no banco e redesenha a página
 async function carregarDados() {
   try {
     const resposta = await fetch('/api/estoque');
+    if (resposta.status === 401) {
+      window.location.href = '/admin/login';
+      return;
+    }
     const dados = await resposta.json();
-    produtos = dados.produtos;
-    movimentos = dados.movimentos;
+    produtos = dados.produtos || [];
+    movimentos = dados.movimentos || [];
+    pedidos = dados.pedidos || [];
   } catch (e) {
     alert('Não foi possível carregar os dados do banco.');
   }
@@ -329,12 +341,42 @@ function mostrarMovimentacoes() {
     </tr>`).join('');
 }
 
+// ---------- Pedidos da Vitrine ----------
+
+function mostrarPedidos() {
+  const corpo = $('corpo-pedidos');
+  if (!corpo) return;
+
+  if (pedidos.length === 0) {
+    corpo.innerHTML = '<tr><td colspan="6">Nenhum pedido realizado na vitrine ainda.</td></tr>';
+    return;
+  }
+
+  corpo.innerHTML = pedidos
+    .map((ped) => {
+      const resumoItens = ped.itens
+        .map((i) => `${i.quantidade}x ${esc(i.produtoNome)}`)
+        .join('<br>');
+      return `
+        <tr>
+          <td><strong>${esc(ped.codigo)}</strong></td>
+          <td>${esc(dataHora(ped.data))}</td>
+          <td>${esc(ped.clienteNome)}<br><span class="detalhe">${esc(ped.clienteEmail)}</span></td>
+          <td>${esc(NOMES_PAGAMENTO[ped.formaPagamento] || ped.formaPagamento)}</td>
+          <td>${resumoItens}</td>
+          <td class="num"><strong>${dinheiro(ped.total)}</strong></td>
+        </tr>`;
+    })
+    .join('');
+}
+
 // Redesenha todas as partes da página
 function mostrarTudo() {
   mostrarPainel();
   mostrarFaturamento();
   mostrarProdutos();
   mostrarMovimentacoes();
+  mostrarPedidos();
 }
 
 
@@ -405,7 +447,11 @@ async function excluirProduto(id) {
   const produto = buscarProduto(id);
   if (!confirm(`Excluir "${produto.nome}"? O histórico de movimentações será mantido.`)) return;
 
-  await fetch('/api/produtos/' + id, { method: 'DELETE' });
+  const resposta = await fetch('/api/produtos/' + id, { method: 'DELETE' });
+  if (resposta.status === 401) {
+    window.location.href = '/admin/login';
+    return;
+  }
   carregarDados();
 }
 

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TecnoCaixa - Vitrine de Informática e Hardware</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vitrine.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body>
+
+  <!-- Cabeçalho da vitrine -->
+  <header class="cabecalho">
+    <div class="cabecalho-interno">
+      <a class="logo" href="/">
+        <span class="logo-icone">🖥️</span>
+        TecnoCaixa
+      </a>
+
+      <nav class="menu">
+        <a href="/" class="ativo">Vitrine</a>
+        <a href="/contato">Contato</a>
+        <a href="/admin">Painel Admin</a>
+      </nav>
+
+      <div class="acoes-topo">
+        <div id="area-cliente" class="area-cliente">
+          <button type="button" class="btn-topo" id="btn-abrir-login">Entrar / Cadastrar</button>
+        </div>
+        <button type="button" class="btn-carrinho" id="btn-abrir-carrinho">
+          🛒 Carrinho <span class="badge-carrinho" id="vit-qtd-carrinho">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Faixa de apresentação -->
+  <section class="destaque">
+    <div class="destaque-interno">
+      <span class="selo-destaque">⚡ Loja oficial TecnoCaixa</span>
+      <h1>Monte seu setup com hardware de ponta</h1>
+      <p>Computadores, monitores, placas de vídeo, processadores e periféricos com estoque atualizado em tempo real e checkout de demonstração.</p>
+    </div>
+  </section>
+
+  <main class="pagina-vitrine">
+    <!-- Barra de busca, categorias e ordenação -->
+    <section class="controles-vitrine">
+      <div class="busca-linha">
+        <input type="search" id="vit-busca" placeholder="Buscar produto, modelo ou SKU...">
+        <select id="vit-ordem" aria-label="Ordenar produtos">
+          <option value="destaques">Ordenar: Destaques</option>
+          <option value="menor-preco">Menor preço</option>
+          <option value="maior-preco">Maior preço</option>
+          <option value="nome">Nome (A–Z)</option>
+        </select>
+      </div>
+
+      <div class="categorias-filtro" id="vit-categorias"></div>
+    </section>
+
+    <div class="resumo-lista">
+      <span id="vit-contador">Carregando produtos...</span>
+    </div>
+
+    <!-- Grade de produtos da loja -->
+    <section class="grid-vitrine" id="vit-grid"></section>
+
+    <p class="aviso-ia">As imagens dos produtos foram geradas por inteligência artificial (IA) e servem apenas como ilustração. Os pagamentos desta vitrine são simulados.</p>
+  </main>
+
+  <!-- Rodapé -->
+  <footer class="rodape">
+    <div class="rodape-interno">
+      <span>© 2026 TecnoCaixa · Vitrine, estoque e faturamento</span>
+      <span>Projeto AV3 · Faculdade Estadual Piauí (PIT)</span>
+    </div>
+  </footer>
+
+  <!-- Modal 1: Carrinho de compras -->
+  <dialog id="dialog-carrinho" class="modal-vitrine">
+    <div class="modal-topo">
+      <h2>🛒 Seu carrinho</h2>
+      <button type="button" class="btn-fechar-modal" data-fechar="dialog-carrinho">✕</button>
+    </div>
+    <div id="carrinho-conteudo" class="carrinho-conteudo"></div>
+    <div class="carrinho-rodape">
+      <div class="carrinho-total">
+        <span>Total do pedido</span>
+        <strong id="carrinho-total-valor">R$ 0,00</strong>
+      </div>
+      <div class="acoes-modal">
+        <button type="button" class="btn-secundario" id="btn-limpar-carrinho">Limpar</button>
+        <button type="button" class="btn-primario" id="btn-ir-pagamento">Ir para pagamento</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal 2: Login e Cadastro do Cliente -->
+  <dialog id="dialog-login-cliente" class="modal-vitrine modal-pequeno">
+    <div class="modal-topo">
+      <h2>👤 Conta do Cliente</h2>
+      <button type="button" class="btn-fechar-modal" data-fechar="dialog-login-cliente">✕</button>
+    </div>
+
+    <div class="abas-auth">
+      <button type="button" class="aba-auth ativa" id="tab-entrar">Entrar</button>
+      <button type="button" class="aba-auth" id="tab-cadastrar">Criar conta</button>
+    </div>
+
+    <p class="aviso-auth" id="auth-aviso" hidden></p>
+
+    <!-- Formulário de Login -->
+    <form id="form-cliente-login" class="form-modal">
+      <p class="ajuda-modal">Entre com sua conta para finalizar o pagamento simulado.</p>
+      <label>E-mail
+        <input type="email" id="login-email" maxlength="120" required placeholder="seu@email.com">
+      </label>
+      <label>Senha
+        <input type="password" id="login-senha" required placeholder="Sua senha">
+      </label>
+      <p class="dica-demo">Conta de teste: <strong>cliente@tecnocaixa.com</strong> · senha: <strong>cliente123</strong></p>
+      <button type="submit" class="btn-primario">Entrar</button>
+    </form>
+
+    <!-- Formulário de Cadastro -->
+    <form id="form-cliente-cadastro" class="form-modal" hidden>
+      <p class="ajuda-modal">Crie uma conta rápida de cliente para comprar na TecnoCaixa.</p>
+      <label>Nome completo
+        <input type="text" id="cad-nome" maxlength="100" required placeholder="Seu nome">
+      </label>
+      <label>E-mail
+        <input type="email" id="cad-email" maxlength="120" required placeholder="seu@email.com">
+      </label>
+      <label>Senha (mínimo 6 caracteres)
+        <input type="password" id="cad-senha" minlength="6" required placeholder="Crie uma senha">
+      </label>
+      <button type="submit" class="btn-primario">Criar conta e entrar</button>
+    </form>
+  </dialog>
+
+  <!-- Modal 3: Checkout / Pagamento Simulado -->
+  <dialog id="dialog-pagamento" class="modal-vitrine">
+    <div class="modal-topo">
+      <h2>💳 Pagamento Simulado</h2>
+      <button type="button" class="btn-fechar-modal" data-fechar="dialog-pagamento">✕</button>
+    </div>
+
+    <div id="pag-formulario-etapa">
+      <div class="alerta-simulacao">
+        <strong>Modo demonstração:</strong> este é um pagamento fictício ("de mentira"). Nenhuma cobrança real será feita, mas a compra dará baixa automática no estoque da loja.
+      </div>
+
+      <div class="resumo-checkout">
+        <p id="pag-cliente-info"></p>
+        <ul id="pag-lista-itens" class="lista-resumo-pag"></ul>
+        <div class="pag-total-linha">
+          <span>Total a pagar</span>
+          <strong id="pag-total-valor">R$ 0,00</strong>
+        </div>
+      </div>
+
+      <form id="form-pagamento" class="form-modal">
+        <label>Endereço de entrega (simulado, opcional)
+          <input type="text" id="pag-endereco" maxlength="200" placeholder="Ex.: Rua das Flores, 120 - Centro">
+        </label>
+
+        <div class="grupo-metodos">
+          <span class="rotulo-grupo">Escolha a forma de pagamento simulada:</span>
+          <div class="opcoes-pagamento">
+            <label class="opcao-pag">
+              <input type="radio" name="formaPagamento" value="pix" checked>
+              <span>⚡ Pix instantâneo</span>
+            </label>
+            <label class="opcao-pag">
+              <input type="radio" name="formaPagamento" value="cartao">
+              <span>💳 Cartão de crédito</span>
+            </label>
+            <label class="opcao-pag">
+              <input type="radio" name="formaPagamento" value="boleto">
+              <span>📄 Boleto bancário</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="detalhes-pix" class="box-metodo">
+          <p>Ao confirmar, geraremos um código Pix fictício com aprovação imediata.</p>
+        </div>
+
+        <div id="detalhes-cartao" class="box-metodo" hidden>
+          <div class="grade-cartao">
+            <label class="largo">Número do cartão (fictício)
+              <input type="text" id="cartao-numero" maxlength="19" placeholder="0000 0000 0000 0000">
+            </label>
+            <label>Validade
+              <input type="text" id="cartao-validade" maxlength="5" placeholder="12/30">
+            </label>
+            <label>CVV
+              <input type="text" id="cartao-cvv" maxlength="4" placeholder="123">
+            </label>
+          </div>
+        </div>
+
+        <div id="detalhes-boleto" class="box-metodo" hidden>
+          <p>Simulação de boleto bancário com compensação instantânea para testes.</p>
+        </div>
+
+        <p class="aviso-auth" id="pag-erro" hidden></p>
+
+        <div class="acoes-modal">
+          <button type="button" class="btn-secundario" id="btn-voltar-carrinho">Voltar ao carrinho</button>
+          <button type="submit" class="btn-primario" id="btn-confirmar-pagamento">Confirmar pagamento simulado</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Tela exibida após aprovação simulada -->
+    <div id="pag-comprovante-etapa" hidden>
+      <div class="comprovante-box">
+        <div class="comprovante-icone">✅</div>
+        <h3>Pedido aprovado (Simulação)!</h3>
+        <p id="comp-codigo" class="comp-codigo"></p>
+        <p id="comp-detalhes"></p>
+        <ul id="comp-itens" class="lista-resumo-pag"></ul>
+      </div>
+      <div class="acoes-modal">
+        <button type="button" class="btn-secundario" id="btn-ver-pedidos-pos-compra">Meus pedidos</button>
+        <button type="button" class="btn-primario" id="btn-continuar-comprando">Continuar comprando</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal 4: Meus Pedidos -->
+  <dialog id="dialog-meus-pedidos" class="modal-vitrine">
+    <div class="modal-topo">
+      <h2>🧾 Meus pedidos</h2>
+      <button type="button" class="btn-fechar-modal" data-fechar="dialog-meus-pedidos">✕</button>
+    </div>
+    <div id="lista-meus-pedidos" class="lista-meus-pedidos"></div>
+  </dialog>
+
+  <!-- Widget do Chatbot da Vitrine (bolinha no canto inferior direito) -->
+  <div id="chatbot-widget" data-modo="vitrine"></div>
+
+  <script src="{{ url_for('static', filename='vitrine.js') }}"></script>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
+</body>
+</html>

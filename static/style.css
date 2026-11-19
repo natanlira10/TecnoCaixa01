@@ -71,6 +71,29 @@ h1, h2, h3 {
   padding: 0 6px;
 }
 
+.rodape-usuario {
+  margin: 0 0 8px;
+  color: #ddd;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.links-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.links-admin a {
+  color: #9ecbff;
+  text-decoration: none;
+  font-size: 0.84rem;
+}
+
+.links-admin a:hover {
+  text-decoration: underline;
+}
+
 .conteudo {
   flex: 1;
   min-width: 0;
@@ -524,6 +547,21 @@ th {
 
   .rodape-lateral {
     display: none;
+  }
+
+  .rodape-lateral.rodape-admin {
+    display: block;
+    margin-top: 0;
+    margin-left: auto;
+  }
+
+  .rodape-lateral.rodape-admin .rodape-usuario {
+    display: none;
+  }
+
+  .rodape-lateral.rodape-admin .links-admin {
+    flex-direction: row;
+    gap: 12px;
   }
 
   main {
