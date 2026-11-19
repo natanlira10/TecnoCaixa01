@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TecnoCaixa - Painel Administrativo</title>
+  <title>TechnoCaixa - Painel Administrativo</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 </head>
@@ -13,7 +13,7 @@
 
     <!-- Menu lateral -->
     <aside class="sidebar">
-      <div class="logo">TecnoCaixa</div>
+      <div class="logo">TechnoCaixa</div>
       <nav class="menu-lateral">
         <a href="#painel" data-aba="painel">📊 Painel</a>
         <a href="#faturamento" data-aba="faturamento">💰 Faturamento</a>
@@ -22,10 +22,9 @@
         <a href="#pedidos" data-aba="pedidos">🧾 Pedidos</a>
       </nav>
       <div class="rodape-lateral rodape-admin">
-        <p class="rodape-usuario">👤 {{ admin_nome }}</p>
+        <p class="rodape-usuario">Painel administrativo</p>
         <div class="links-admin">
           <a href="/">🛒 Ver vitrine</a>
-          <a href="/admin/logout">🚪 Sair</a>
         </div>
       </div>
     </aside>
@@ -79,8 +78,26 @@
           </div>
 
           <div class="bloco">
-            <h3>Faturamento dos últimos 7 dias</h3>
+            <div class="grafico-topo">
+              <h3 id="titulo-grafico-fat">Faturamento dos últimos 30 dias</h3>
+              <div class="controles-grafico" aria-label="Controles de escala do gráfico">
+                <div class="controle-eixo">
+                  <span>Eixo X:</span>
+                  <button type="button" id="zoom-x-menos" title="Diminuir largura do eixo X">−</button>
+                  <strong id="zoom-x-valor">100%</strong>
+                  <button type="button" id="zoom-x-mais" title="Aumentar largura do eixo X">+</button>
+                </div>
+                <div class="controle-eixo">
+                  <span>Eixo Y:</span>
+                  <button type="button" id="zoom-y-menos" title="Diminuir altura do eixo Y">−</button>
+                  <strong id="zoom-y-valor">100%</strong>
+                  <button type="button" id="zoom-y-mais" title="Aumentar altura do eixo Y">+</button>
+                </div>
+                <button type="button" class="btn-reset-grafico" id="zoom-resetar" title="Voltar à escala automática">Auto</button>
+              </div>
+            </div>
             <div class="grafico" id="grafico-dias"></div>
+            <p class="legenda-grafico" id="legenda-grafico-fat"></p>
           </div>
 
           <div class="bloco">

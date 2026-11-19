@@ -1,5 +1,5 @@
 -- =============================================================
--- TecnoCaixa - Script de criação do banco (PostgreSQL / Neon)
+-- TechnoCaixa - Script de criação do banco (PostgreSQL / Neon)
 -- Execute no SQL Editor do Neon. Equivale ao que o models.py cria.
 -- =============================================================
 
@@ -73,23 +73,11 @@ CREATE TABLE contato (
 );
 
 
--- Usuários do sistema: clientes da vitrine e administradores
-CREATE TABLE usuario (
-    id          SERIAL       PRIMARY KEY,
-    nome        VARCHAR(100) NOT NULL,
-    email       VARCHAR(120) NOT NULL UNIQUE,
-    senha_hash  VARCHAR(255) NOT NULL,
-    tipo        VARCHAR(10)  NOT NULL DEFAULT 'cliente',
-    criado_em   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT ck_usuario_tipo CHECK (tipo IN ('cliente', 'admin'))
-);
-
-
--- Pedidos simulados feitos pelos clientes logados na vitrine
+-- Pedidos simulados feitos diretamente na vitrine
 CREATE TABLE pedido (
     id               SERIAL         PRIMARY KEY,
-    usuario_id       INTEGER        NOT NULL REFERENCES usuario (id),
+    cliente_nome     VARCHAR(100)   NOT NULL DEFAULT 'Cliente da Vitrine',
+    cliente_email    VARCHAR(120)   DEFAULT '',
     data             TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
     forma_pagamento  VARCHAR(20)    NOT NULL,
     total            NUMERIC(12, 2) NOT NULL DEFAULT 0,
@@ -99,8 +87,6 @@ CREATE TABLE pedido (
     CONSTRAINT ck_pedido_pagamento CHECK (forma_pagamento IN ('pix', 'cartao', 'boleto')),
     CONSTRAINT ck_pedido_total     CHECK (total >= 0)
 );
-
-CREATE INDEX ix_pedido_usuario_id ON pedido (usuario_id);
 
 
 -- Itens comprados em cada pedido (1 pedido : N itens, 1 produto : N itens)

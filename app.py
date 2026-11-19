@@ -1,19 +1,16 @@
 from decimal import Decimal
-from functools import wraps
+import hashlib
 import re
 
 from flask import (
     Flask,
     jsonify,
-    redirect,
     render_template,
     request,
     send_from_directory,
-    session,
-    url_for,
 )
+from sqlalchemy import text
 from sqlalchemy.orm import joinedload
-from werkzeug.security import check_password_hash, generate_password_hash
 
 from chatbot_gemini import perguntar_ao_gemini
 from config import Config
@@ -24,7 +21,6 @@ from models import (
     Movimento,
     Pedido,
     Produto,
-    Usuario,
     agora,
     db,
 )
@@ -46,38 +42,6 @@ EMAIL_VALIDO = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # ---------------------------------------------------------------
 
 
-# ---------- Controle de acesso (sessões separadas de cliente e admin) ----------
-
-def exigir_admin_pagina(funcao):
-    """Bloqueia páginas administrativas se o administrador não estiver logado."""
-    @wraps(funcao)
-    def wrapper(*args, **kwargs):
-        if "admin_id" not in session:
-            return redirect(url_for("admin_login"))
-        return funcao(*args, **kwargs)
-    return wrapper
-
-
-def exigir_admin_api(funcao):
-    """Bloqueia rotas /api/... administrativas sem sessão de admin."""
-    @wraps(funcao)
-    def wrapper(*args, **kwargs):
-        if "admin_id" not in session:
-            return jsonify({"erro": "Acesso restrito ao administrador. Faça login."}), 401
-        return funcao(*args, **kwargs)
-    return wrapper
-
-
-def exigir_cliente_api(funcao):
-    """Exige login de cliente para finalizar compra ou ver pedidos na vitrine."""
-    @wraps(funcao)
-    def wrapper(*args, **kwargs):
-        if "cliente_id" not in session:
-            return jsonify({"erro": "Faça login para realizar o pagamento."}), 401
-        return funcao(*args, **kwargs)
-    return wrapper
-
-
 # ---------- Páginas do site ----------
 
 # Página principal: Vitrine de vendas para os clientes
@@ -93,51 +57,11 @@ def contato():
     return render_template("contato.html")
 
 
-# Login do painel administrativo
-@app.route("/admin/login", methods=["GET", "POST"])
-def admin_login():
-    if request.method == "GET":
-        if "admin_id" in session:
-            return redirect(url_for("painel_admin"))
-        return render_template("admin_login.html", erro=None, email="")
-
-    email = str(request.form.get("email", "")).strip().lower()
-    senha = str(request.form.get("senha", ""))
-
-    usuario = Usuario.query.filter(
-        db.func.lower(Usuario.email) == email,
-        Usuario.tipo == "admin",
-    ).first()
-
-    if not usuario or not check_password_hash(usuario.senha_hash, senha):
-        return render_template(
-            "admin_login.html",
-            erro="E-mail ou senha de administrador inválidos.",
-            email=email,
-        ), 401
-
-    session["admin_id"] = usuario.id
-    session["admin_nome"] = usuario.nome
-    return redirect(url_for("painel_admin"))
-
-
-# Encerra a sessão do administrador (sem derrubar o login do cliente na vitrine)
-@app.route("/admin/logout", methods=["GET", "POST"])
-def admin_logout():
-    session.pop("admin_id", None)
-    session.pop("admin_nome", None)
-    return redirect(url_for("admin_login"))
-
-
-# Painel de administração (antigo controle de estoque, agora protegido por login)
+# Painel de administração (controle de estoque, faturamento e pedidos)
 @app.route("/admin")
 @app.route("/estoque")
-@exigir_admin_pagina
 def painel_admin():
-    return render_template(
-        "estoque.html",
-        admin_nome=session.get("admin_nome", "Administrador"),
-    )
+    return render_template("estoque.html")
 
 
 # Entrega as fotos que ficam em static/Fotos
@@ -148,6 +72,48 @@ def fotos(arquivo):
 
 # ---------- Vitrine pública e conta do cliente ----------
 
+def calcular_versoes_banco():
+    """Calcula hashes leves para detectar mudanças na vitrine e no painel sem recarregar tudo."""
+    linha = db.session.execute(text("""
+        SELECT
+            (SELECT md5(COALESCE(string_agg(
+                id::text || ':' || sku || ':' || nome || ':' || categoria_id::text || ':' ||
+                quantidade::text || ':' || preco::text || ':' || md5(COALESCE(foto, '')),
+                '|' ORDER BY id
+            ), 'vazio')) FROM produto WHERE ativo = TRUE) AS v_vitrine,
+            (SELECT md5(COALESCE(string_agg(
+                id::text || ':' || sku || ':' || nome || ':' || categoria_id::text || ':' ||
+                quantidade::text || ':' || minimo::text || ':' || custo::text || ':' ||
+                preco::text || ':' || COALESCE(local, '') || ':' || md5(COALESCE(foto, '')),
+                '|' ORDER BY id
+            ), 'vazio')) FROM produto WHERE ativo = TRUE) AS v_produtos_adm,
+            (SELECT COUNT(*)::text || ':' || COALESCE(MAX(id), 0)::text FROM movimento) AS v_mov,
+            (SELECT COUNT(*)::text || ':' || COALESCE(MAX(id), 0)::text FROM pedido) AS v_ped
+    """)).first()
+
+    hash_vitrine = linha[0]
+    assinatura_admin = f"{linha[1]}|{linha[2]}|{linha[3]}"
+    hash_admin = hashlib.md5(assinatura_admin.encode("utf-8")).hexdigest()
+    return {"vitrine": hash_vitrine, "admin": hash_admin}
+
+
+def resposta_sem_cache(dados, status=200, cabecalhos=None):
+    """Devolve JSON com Cache-Control: no-store para atualização em tempo real."""
+    resposta = jsonify(dados)
+    resposta.status_code = status
+    resposta.headers["Cache-Control"] = "no-store"
+    if cabecalhos:
+        for chave, valor in cabecalhos.items():
+            resposta.headers[chave] = valor
+    return resposta
+
+
+# Informa versões atuais do banco para atualização automática sem F5
+@app.route("/api/versao")
+def api_versao():
+    return resposta_sem_cache(calcular_versoes_banco())
+
+
 # Lista os produtos ativos para a vitrine (sem expor custo nem local interno)
 @app.route("/api/vitrine/produtos")
 def api_vitrine_produtos():
@@ -157,111 +123,22 @@ def api_vitrine_produtos():
         .order_by(Produto.id)
         .all()
     )
-    return jsonify([p.to_vitrine_dict() for p in produtos])
-
-
-# Informa se existe um cliente logado na vitrine
-@app.route("/api/cliente/eu")
-def api_cliente_eu():
-    cliente_id = session.get("cliente_id")
-    if not cliente_id:
-        return jsonify({"logado": False, "cliente": None})
-
-    cliente = db.session.get(Usuario, cliente_id)
-    if not cliente:
-        session.pop("cliente_id", None)
-        session.pop("cliente_nome", None)
-        return jsonify({"logado": False, "cliente": None})
-
-    return jsonify({"logado": True, "cliente": cliente.to_dict()})
-
-
-# Cria uma conta de cliente na vitrine e já entra automaticamente
-@app.route("/api/cliente/cadastro", methods=["POST"])
-def api_cliente_cadastro():
-    dados = request.get_json(silent=True) or {}
-    nome = str(dados.get("nome", "")).strip()
-    email = str(dados.get("email", "")).strip().lower()
-    senha = str(dados.get("senha", ""))
-
-    if not nome or not email or not senha:
-        return jsonify({"erro": "Preencha nome, e-mail e senha."}), 400
-    if len(nome) > 100 or len(email) > 120:
-        return jsonify({"erro": "Nome ou e-mail muito longos."}), 400
-    if not EMAIL_VALIDO.match(email):
-        return jsonify({"erro": "Informe um e-mail válido."}), 400
-    if len(senha) < 6:
-        return jsonify({"erro": "A senha precisa ter pelo menos 6 caracteres."}), 400
-
-    existente = Usuario.query.filter(db.func.lower(Usuario.email) == email).first()
-    if existente:
-        return jsonify({"erro": "Já existe uma conta cadastrada com este e-mail."}), 400
-
-    cliente = Usuario(
-        nome=nome,
-        email=email,
-        senha_hash=generate_password_hash(senha),
-        tipo="cliente",
+    versoes = calcular_versoes_banco()
+    return resposta_sem_cache(
+        [p.to_vitrine_dict() for p in produtos],
+        cabecalhos={"X-Versao-Vitrine": versoes["vitrine"]},
     )
-    db.session.add(cliente)
-    db.session.commit()
-
-    session["cliente_id"] = cliente.id
-    session["cliente_nome"] = cliente.nome
-    return jsonify({"cliente": cliente.to_dict()}), 201
-
-
-# Faz login do cliente na vitrine (nunca concede acesso de administrador)
-@app.route("/api/cliente/login", methods=["POST"])
-def api_cliente_login():
-    dados = request.get_json(silent=True) or {}
-    email = str(dados.get("email", "")).strip().lower()
-    senha = str(dados.get("senha", ""))
-
-    if not email or not senha:
-        return jsonify({"erro": "Informe e-mail e senha."}), 400
-
-    usuario = Usuario.query.filter(db.func.lower(Usuario.email) == email).first()
-    if not usuario or not check_password_hash(usuario.senha_hash, senha):
-        return jsonify({"erro": "E-mail ou senha incorretos."}), 401
-
-    session["cliente_id"] = usuario.id
-    session["cliente_nome"] = usuario.nome
-    return jsonify({"cliente": usuario.to_dict()})
-
-
-# Sai da conta do cliente na vitrine
-@app.route("/api/cliente/logout", methods=["POST"])
-def api_cliente_logout():
-    session.pop("cliente_id", None)
-    session.pop("cliente_nome", None)
-    return jsonify({"ok": True})
-
-
-# Lista os pedidos simulados do cliente logado
-@app.route("/api/cliente/pedidos")
-@exigir_cliente_api
-def api_cliente_pedidos():
-    pedidos = (
-        Pedido.query.options(
-            joinedload(Pedido.usuario),
-            joinedload(Pedido.itens).joinedload(ItemPedido.produto),
-        )
-        .filter_by(usuario_id=session["cliente_id"])
-        .order_by(Pedido.id.desc())
-        .all()
-    )
-    return jsonify([p.to_dict() for p in pedidos])
 
 
 # Finaliza um "pagamento" simulado na vitrine, baixa o estoque e registra a venda
 @app.route("/api/pedidos", methods=["POST"])
-@exigir_cliente_api
 def api_criar_pedido():
     dados = request.get_json(silent=True) or {}
     itens_recebidos = dados.get("itens")
     forma_pagamento = str(dados.get("formaPagamento", "")).strip().lower()
     endereco = str(dados.get("endereco", "")).strip()[:200]
+    cliente_nome = str(dados.get("clienteNome", "")).strip()[:100] or "Cliente da Vitrine"
+    cliente_email = str(dados.get("clienteEmail", "")).strip()[:120]
 
     if forma_pagamento not in FORMAS_PAGAMENTO:
         return jsonify({"erro": "Escolha uma forma de pagamento válida (Pix, Cartão ou Boleto)."}), 400
@@ -282,12 +159,9 @@ def api_criar_pedido():
             return jsonify({"erro": "A quantidade de cada item deve ser maior que zero."}), 400
         quantidades_por_produto[pid] = quantidades_por_produto.get(pid, 0) + qtd
 
-    cliente = db.session.get(Usuario, session["cliente_id"])
-    if not cliente:
-        return jsonify({"erro": "Sessão do cliente expirada. Faça login novamente."}), 401
-
     pedido = Pedido(
-        usuario_id=cliente.id,
+        cliente_nome=cliente_nome,
+        cliente_email=cliente_email,
         data=agora(),
         forma_pagamento=forma_pagamento,
         total=Decimal("0.00"),
@@ -328,7 +202,7 @@ def api_criar_pedido():
             )
         )
 
-        obs = f"Pedido #TC-{pedido.id:04d} · {cliente.nome} ({forma_pagamento.upper()})"
+        obs = f"Pedido #TC-{pedido.id:04d} · {cliente_nome} ({forma_pagamento.upper()})"
         db.session.add(
             Movimento(
                 data=pedido.data,
@@ -346,7 +220,6 @@ def api_criar_pedido():
 
     pedido_completo = (
         Pedido.query.options(
-            joinedload(Pedido.usuario),
             joinedload(Pedido.itens).joinedload(ItemPedido.produto),
         )
         .filter_by(id=pedido.id)
@@ -359,7 +232,6 @@ def api_criar_pedido():
 
 # Envia todos os produtos ativos, movimentações e pedidos para o painel administrativo
 @app.route("/api/estoque")
-@exigir_admin_api
 def api_estoque():
     produtos = (
         Produto.query.options(joinedload(Produto.categoria))
@@ -374,17 +246,18 @@ def api_estoque():
     )
     pedidos = (
         Pedido.query.options(
-            joinedload(Pedido.usuario),
             joinedload(Pedido.itens).joinedload(ItemPedido.produto),
         )
         .order_by(Pedido.id.desc())
         .all()
     )
 
-    return jsonify({
+    versoes = calcular_versoes_banco()
+    return resposta_sem_cache({
         "produtos": [p.to_dict() for p in produtos],
         "movimentos": [m.to_dict() for m in movimentos],
         "pedidos": [ped.to_dict() for ped in pedidos],
+        "versao": versoes["admin"],
     })
 
 
@@ -444,7 +317,6 @@ def registrar_movimento(produto, tipo, quantidade, observacao):
 
 # Cadastra um produto novo
 @app.route("/api/produtos", methods=["POST"])
-@exigir_admin_api
 def api_novo_produto():
     dados = request.get_json(silent=True) or {}
 
@@ -473,7 +345,6 @@ def api_novo_produto():
 
 # Edita um produto (a quantidade só muda por movimentação)
 @app.route("/api/produtos/<int:id>", methods=["PUT"])
-@exigir_admin_api
 def api_editar_produto(id):
     produto = Produto.query.filter_by(id=id, ativo=True).first_or_404()
     dados = request.get_json(silent=True) or {}
@@ -492,7 +363,6 @@ def api_editar_produto(id):
 
 # Exclui um produto (exclusão lógica: o histórico de movimentações é mantido)
 @app.route("/api/produtos/<int:id>", methods=["DELETE"])
-@exigir_admin_api
 def api_excluir_produto(id):
     produto = Produto.query.filter_by(id=id, ativo=True).first_or_404()
     produto.ativo = False
@@ -502,7 +372,6 @@ def api_excluir_produto(id):
 
 # Registra entrada, venda ou saída e atualiza a quantidade do produto
 @app.route("/api/movimentos", methods=["POST"])
-@exigir_admin_api
 def api_novo_movimento():
     dados = request.get_json(silent=True) or {}
 
@@ -568,9 +437,8 @@ def api_novo_contato():
     return jsonify(contato.to_dict()), 201
 
 
-# Lista as mensagens recebidas (somente admin)
+# Lista as mensagens recebidas
 @app.route("/api/contatos")
-@exigir_admin_api
 def api_listar_contatos():
     contatos = Contato.query.order_by(Contato.id.desc()).all()
     return jsonify([c.to_dict() for c in contatos])
@@ -604,9 +472,8 @@ def api_chat_vitrine():
     return processar_mensagem_chat("vitrine")
 
 
-# Chatbot restrito ao painel administrativo (persona técnica, estoque e estatísticas)
+# Chatbot do painel administrativo (persona técnica, estoque e estatísticas)
 @app.route("/api/chat/admin", methods=["POST"])
-@exigir_admin_api
 def api_chat_admin():
     return processar_mensagem_chat("admin")
 
@@ -641,41 +508,46 @@ def cadastrar_produtos_iniciais():
             registrar_movimento(produto, "entrada", produto.quantidade, "Estoque inicial")
 
 
-def garantir_usuarios_padrao():
-    """Cria a conta padrão de administrador e um cliente de exemplo se ainda não existirem."""
-    existe_admin = Usuario.query.filter_by(tipo="admin").first()
-    if not existe_admin:
-        admin = Usuario(
-            nome=Config.ADMIN_NOME,
-            email=Config.ADMIN_EMAIL.strip().lower(),
-            senha_hash=generate_password_hash(Config.ADMIN_SENHA),
-            tipo="admin",
-        )
-        db.session.add(admin)
-    elif existe_admin.nome == "Administrador TecnoCaixa":
-        existe_admin.nome = Config.ADMIN_NOME
+def migrar_pedidos_sem_login():
+    """Preserva os pedidos antigos migrando nome/e-mail do comprador antes de remover a tabela usuario."""
+    db.session.execute(text(
+        "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS cliente_nome VARCHAR(100) NOT NULL DEFAULT 'Cliente da Vitrine'"
+    ))
+    db.session.execute(text(
+        "ALTER TABLE pedido ADD COLUMN IF NOT EXISTS cliente_email VARCHAR(120) DEFAULT ''"
+    ))
 
-    email_demo = "cliente@tecnocaixa.com"
-    if not Usuario.query.filter(db.func.lower(Usuario.email) == email_demo).first():
-        cliente_demo = Usuario(
-            nome="Cliente Demonstração",
-            email=email_demo,
-            senha_hash=generate_password_hash("cliente123"),
-            tipo="cliente",
-        )
-        db.session.add(cliente_demo)
+    tem_usuario_id = db.session.execute(text("""
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'pedido' AND column_name = 'usuario_id'
+    """)).first()
+
+    if tem_usuario_id:
+        tem_tabela_usuario = db.session.execute(text("SELECT to_regclass('public.usuario')")).scalar()
+        if tem_tabela_usuario:
+            db.session.execute(text("""
+                UPDATE pedido p
+                SET cliente_nome = u.nome,
+                    cliente_email = u.email
+                FROM usuario u
+                WHERE p.usuario_id = u.id
+            """))
+        db.session.execute(text("ALTER TABLE pedido DROP COLUMN IF EXISTS usuario_id"))
+
+    db.session.execute(text("DROP TABLE IF EXISTS usuario"))
 
 
-# Cria as tabelas no banco (Neon) e cadastra categorias, produtos iniciais e contas padrão
+# Cria as tabelas no banco (Neon) e cadastra categorias e produtos iniciais
 def preparar_banco():
     db.create_all()
+    migrar_pedidos_sem_login()
+
     for nome in CATEGORIAS:
         if not Categoria.query.filter_by(nome=nome).first():
             db.session.add(Categoria(nome=nome))
     db.session.flush()
 
     cadastrar_produtos_iniciais()
-    garantir_usuarios_padrao()
     db.session.commit()
 
 

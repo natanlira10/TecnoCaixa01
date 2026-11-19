@@ -1,5 +1,5 @@
 // =============================================================
-// TecnoCaixa - Controle de estoque e faturamento
+// TechnoCaixa - Controle de estoque e faturamento
 //
 // Os dados ficam no banco de dados (PostgreSQL no Neon).
 // Este arquivo conversa com o servidor Flask (app.py) pelas rotas /api/...
@@ -25,6 +25,52 @@ const NOMES_PAGAMENTO = { pix: 'Pix', cartao: 'Cartão', boleto: 'Boleto' };
 let produtos = [];
 let movimentos = [];
 let pedidos = [];
+
+// Controle de escala (zoom) independente dos eixos X e Y do gráfico
+let zoomX = 1;
+let zoomY = 1;
+const ZOOM_X_MIN = 0.6;
+const ZOOM_X_MAX = 2.4;
+const ZOOM_Y_MIN = 0.6;
+const ZOOM_Y_MAX = 2.2;
+const PASSO_ZOOM = 0.2;
+
+// Controle de atualização automática em tempo real (sem precisar apertar F5)
+let ultimaVersaoAdmin = '';
+let verificandoAdmin = false;
+let temporizadorToast = null;
+const INTERVALO_ATUALIZACAO_MS = 4000;
+const CANAL_SYNC_NOME = 'technocaixa_sync';
+const CHAVE_SYNC_LOCAL = 'technocaixa_sync_ping';
+const canalSync = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CANAL_SYNC_NOME) : null;
+
+function notificarOutrasAbas(tipo) {
+  const evento = { origem: 'admin', tipo, momento: Date.now() };
+  try {
+    if (canalSync) canalSync.postMessage(evento);
+    localStorage.setItem(CHAVE_SYNC_LOCAL, JSON.stringify(evento));
+  } catch (e) {
+    // Ignora caso o navegador bloqueie o armazenamento local
+  }
+}
+
+function mostrarToast(mensagem) {
+  let toast = $('toast-atualizacao');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-atualizacao';
+    toast.className = 'toast-atualizacao';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    document.body.appendChild(toast);
+  }
+  toast.textContent = mensagem;
+  toast.classList.add('visivel');
+  clearTimeout(temporizadorToast);
+  temporizadorToast = setTimeout(() => {
+    toast.classList.remove('visivel');
+  }, 3000);
+}
 
 
 // ---------- Funções de ajuda ----------
@@ -77,10 +123,6 @@ async function enviarParaServidor(endereco, metodo, dados) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dados)
   });
-  if (resposta.status === 401) {
-    window.location.href = '/admin/login';
-    return false;
-  }
   const resultado = await resposta.json();
 
   if (!resposta.ok) {
@@ -91,21 +133,62 @@ async function enviarParaServidor(endereco, metodo, dados) {
 }
 
 // Busca produtos, movimentações e pedidos no banco e redesenha a página
-async function carregarDados() {
+async function carregarDados(opcoes = {}) {
+  const qtdPedidosAntes = pedidos.length;
+  const jaTinhaDados = Boolean(ultimaVersaoAdmin);
+
   try {
-    const resposta = await fetch('/api/estoque');
-    if (resposta.status === 401) {
-      window.location.href = '/admin/login';
-      return;
-    }
+    const resposta = await fetch('/api/estoque', { cache: 'no-store' });
+    if (!resposta.ok) throw new Error('Falha ao buscar dados do estoque');
+
     const dados = await resposta.json();
+    const mudouVersao = jaTinhaDados && dados.versao && dados.versao !== ultimaVersaoAdmin;
+
     produtos = dados.produtos || [];
     movimentos = dados.movimentos || [];
     pedidos = dados.pedidos || [];
+    if (dados.versao) ultimaVersaoAdmin = dados.versao;
+
+    mostrarTudo();
+
+    if (opcoes.avisarSeMudou && mudouVersao) {
+      if (pedidos.length > qtdPedidosAntes) {
+        mostrarToast('🔔 Novo pedido recebido na vitrine!');
+      } else {
+        mostrarToast('🔄 Estoque e dados atualizados');
+      }
+    }
   } catch (e) {
-    alert('Não foi possível carregar os dados do banco.');
+    if (!opcoes.silencioso) {
+      alert('Não foi possível carregar os dados do banco.');
+    }
   }
-  mostrarTudo();
+}
+
+async function verificarAtualizacaoAdmin(forcar = false) {
+  if (verificandoAdmin) return;
+  if (!forcar && document.visibilityState !== 'visible') return;
+
+  verificandoAdmin = true;
+  try {
+    const resposta = await fetch('/api/versao', { cache: 'no-store' });
+    if (!resposta.ok) return;
+    const dados = await resposta.json();
+    if (!dados.admin) return;
+
+    if (!ultimaVersaoAdmin) {
+      ultimaVersaoAdmin = dados.admin;
+      return;
+    }
+
+    if (forcar || dados.admin !== ultimaVersaoAdmin) {
+      await carregarDados({ silencioso: true, avisarSeMudou: true });
+    }
+  } catch (e) {
+    // Falha momentânea de rede é ignorada na verificação em segundo plano
+  } finally {
+    verificandoAdmin = false;
+  }
 }
 
 
@@ -123,6 +206,11 @@ function mostrarAba(nome) {
   $('titulo-aba').textContent = NOMES_DAS_ABAS[nome];
   history.replaceState(null, '', '#' + nome);
   window.scrollTo(0, 0);
+
+  // Redesenha o gráfico quando a aba fica visível para ler a largura real do contêiner
+  if (nome === 'faturamento') {
+    mostrarFaturamento();
+  }
 }
 
 
@@ -170,47 +258,251 @@ function vendasDoPeriodo() {
   return movimentos.filter((m) => m.tipo === 'venda' && new Date(m.data).getTime() >= inicio);
 }
 
-// Desenha o gráfico de linha (eixo X = dias, eixo Y = faturamento em R$)
-function desenharGrafico(pontos) {
-  const largura = 600, altura = 280;
-  const esquerda = 80, direita = 20, topo = 20, baixo = 44;
+function inicioDoDia(data) {
+  const copia = new Date(data);
+  copia.setHours(0, 0, 0, 0);
+  return copia;
+}
+
+// Monta os pontos do eixo X de acordo com o período selecionado
+function montarSerieDoGrafico() {
+  const diasPeriodo = Number($('fat-periodo').value);
+  const vendas = movimentos.filter((m) => m.tipo === 'venda');
+  const hoje = inicioDoDia(new Date());
+
+  const titulos = {
+    7: 'Faturamento dos últimos 7 dias',
+    30: 'Faturamento dos últimos 30 dias',
+    90: 'Faturamento dos últimos 90 dias',
+    0: 'Faturamento de todo o período'
+  };
+
+  let modo = 'dias';
+  let totalDias = diasPeriodo;
+
+  if (diasPeriodo === 0) {
+    if (vendas.length === 0) {
+      totalDias = 7;
+    } else {
+      const menorData = Math.min(...vendas.map((v) => inicioDoDia(new Date(v.data)).getTime()));
+      const diffDias = Math.floor((hoje.getTime() - menorData) / (24 * 60 * 60 * 1000)) + 1;
+      if (diffDias <= 31) {
+        modo = 'dias';
+        totalDias = Math.max(7, diffDias);
+      } else if (diffDias <= 120) {
+        modo = 'semanas';
+        totalDias = diffDias;
+      } else {
+        modo = 'meses';
+      }
+    }
+  } else if (diasPeriodo > 31) {
+    modo = 'semanas';
+  }
+
+  const pontos = [];
+
+  if (modo === 'dias') {
+    const somaPorDia = {};
+    vendas.forEach((m) => {
+      const chave = inicioDoDia(new Date(m.data)).toDateString();
+      somaPorDia[chave] = (somaPorDia[chave] || 0) + m.valor;
+    });
+
+    for (let i = totalDias - 1; i >= 0; i--) {
+      const dia = new Date(hoje);
+      dia.setDate(hoje.getDate() - i);
+      const formato = totalDias <= 7
+        ? { weekday: 'short', day: '2-digit' }
+        : { day: '2-digit', month: '2-digit' };
+      pontos.push({
+        rotulo: dia.toLocaleDateString('pt-BR', formato),
+        total: somaPorDia[dia.toDateString()] || 0
+      });
+    }
+    return { titulo: titulos[diasPeriodo] || titulos[0], unidade: 'dias', pontos };
+  }
+
+  if (modo === 'semanas') {
+    const numSemanas = Math.max(2, Math.ceil(totalDias / 7));
+    for (let s = numSemanas - 1; s >= 0; s--) {
+      const fimSemana = new Date(hoje);
+      fimSemana.setDate(hoje.getDate() - s * 7);
+      fimSemana.setHours(23, 59, 59, 999);
+
+      const iniSemana = new Date(fimSemana);
+      iniSemana.setDate(fimSemana.getDate() - 6);
+      iniSemana.setHours(0, 0, 0, 0);
+
+      let total = 0;
+      vendas.forEach((m) => {
+        const t = new Date(m.data).getTime();
+        if (t >= iniSemana.getTime() && t <= fimSemana.getTime()) {
+          total += m.valor;
+        }
+      });
+
+      const rotuloIni = iniSemana.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      pontos.push({ rotulo: `Sem ${rotuloIni}`, total });
+    }
+    return { titulo: titulos[diasPeriodo] || titulos[0], unidade: 'semanas', pontos };
+  }
+
+  // Agrupamento mensal quando "Todo o período" ultrapassa 120 dias
+  const menorData = new Date(Math.min(...vendas.map((v) => new Date(v.data).getTime())));
+  const cursor = new Date(menorData.getFullYear(), menorData.getMonth(), 1);
+  const limiteMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+  while (cursor <= limiteMes) {
+    const ano = cursor.getFullYear();
+    const mes = cursor.getMonth();
+    let total = 0;
+    vendas.forEach((m) => {
+      const d = new Date(m.data);
+      if (d.getFullYear() === ano && d.getMonth() === mes) {
+        total += m.valor;
+      }
+    });
+    const rotuloMes = cursor.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+    pontos.push({ rotulo: rotuloMes, total });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return { titulo: titulos[0], unidade: 'meses', pontos };
+}
+
+// Calcula degraus redondos para o eixo Y de acordo com a grandeza do maior valor
+function calcularEscalaY(maiorReal, divisoesDesejadas) {
+  if (maiorReal <= 0) {
+    return { teto: 100, passo: 25, linhas: 4 };
+  }
+
+  const passoBruto = (maiorReal * 1.08) / Math.max(2, divisoesDesejadas);
+  const potencia = Math.pow(10, Math.floor(Math.log10(passoBruto)));
+  const fracao = passoBruto / potencia;
+
+  let multiplicador = 10;
+  if (fracao <= 1) multiplicador = 1;
+  else if (fracao <= 2) multiplicador = 2;
+  else if (fracao <= 2.5) multiplicador = 2.5;
+  else if (fracao <= 5) multiplicador = 5;
+
+  const passo = multiplicador * potencia;
+  const teto = Math.ceil((maiorReal * 1.05) / passo) * passo;
+  const linhas = Math.max(2, Math.round(teto / passo));
+
+  return { teto, passo, linhas };
+}
+
+// Atualiza os textos e botões dos controles manuais de escala
+function atualizarControlesZoom() {
+  if (!$('zoom-x-valor')) return;
+  $('zoom-x-valor').textContent = Math.round(zoomX * 100) + '%';
+  $('zoom-y-valor').textContent = Math.round(zoomY * 100) + '%';
+  $('zoom-x-menos').disabled = zoomX <= ZOOM_X_MIN + 0.01;
+  $('zoom-x-mais').disabled = zoomX >= ZOOM_X_MAX - 0.01;
+  $('zoom-y-menos').disabled = zoomY <= ZOOM_Y_MIN + 0.01;
+  $('zoom-y-mais').disabled = zoomY >= ZOOM_Y_MAX - 0.01;
+}
+
+// Desenha o gráfico de linha com escala e dimensões proporcionais aos eixos X e Y
+function desenharGrafico(pontos, larguraDisponivel) {
+  const maiorReal = Math.max(...pontos.map((p) => p.total), 0);
+  const divisoesY = Math.min(8, Math.max(3, Math.round(4 * zoomY)));
+  const escala = calcularEscalaY(maiorReal, divisoesY);
+
+  // Altura automática conforme a grandeza dos valores em Y + zoom manual
+  let alturaBase = 290;
+  if (maiorReal <= 1000) alturaBase = 240;
+  else if (maiorReal <= 20000) alturaBase = 290;
+  else if (maiorReal <= 100000) alturaBase = 340;
+  else alturaBase = 390;
+
+  const altura = Math.min(820, Math.max(190, Math.round(alturaBase * zoomY)));
+
+  // Margem esquerda calculada pelo maior rótulo do eixo Y (sem cortar cifras altas)
+  const maiorRotuloY = 'R$ ' + Math.round(escala.teto).toLocaleString('pt-BR');
+  const esquerda = Math.max(88, Math.ceil(maiorRotuloY.length * 7.8) + 22);
+
+  // Margem direita calculada pelo maior texto exibido nos pontos (evita cortar "R$ 899,90")
+  const textosPontos = pontos.filter((p) => p.total > 0).map((p) => dinheiro(p.total));
+  const ultimoRotuloX = pontos.length ? pontos[pontos.length - 1].rotulo : '';
+  const maiorTextoDireita = [...textosPontos, ultimoRotuloX].reduce(
+    (maior, atual) => (atual.length > maior.length ? atual : maior),
+    ''
+  );
+  const direita = Math.max(76, Math.ceil(maiorTextoDireita.length * 4.4) + 22);
+  const topo = 42;
+  const baixo = 48;
+
+  // Largura automática conforme a quantidade de pontos no eixo X + zoom manual
+  const larguraCaixa = larguraDisponivel || ($('grafico-dias') ? $('grafico-dias').clientWidth : 0) || 720;
+  const espacoMinPorPonto = pontos.length <= 7 ? 95 : (pontos.length <= 15 ? 74 : 46);
+  const larguraNatural = esquerda + direita + Math.max(1, pontos.length - 1) * espacoMinPorPonto;
+  const larguraBase = Math.max(larguraCaixa - 4, larguraNatural);
+  const largura = Math.max(460, Math.round(larguraBase * zoomX));
+
   const larguraUtil = largura - esquerda - direita;
   const alturaUtil = altura - topo - baixo;
-  const maiorValor = Math.max(...pontos.map((p) => p.total), 1) * 1.1;
 
-  const posicaoX = (i) => esquerda + (i / (pontos.length - 1)) * larguraUtil;
-  const posicaoY = (valor) => topo + alturaUtil - (valor / maiorValor) * alturaUtil;
+  const posicaoX = (i) => {
+    if (pontos.length <= 1) return esquerda + larguraUtil / 2;
+    return esquerda + (i / (pontos.length - 1)) * larguraUtil;
+  };
+  const posicaoY = (valor) => topo + alturaUtil - (valor / escala.teto) * alturaUtil;
 
-  let svg = `<svg viewBox="0 0 ${largura} ${altura}" role="img" aria-label="Gráfico de faturamento dos últimos 7 dias" class="plano">`;
+  let svg = `<svg width="${largura}" height="${altura}" viewBox="0 0 ${largura} ${altura}" role="img" aria-label="Gráfico de faturamento" class="plano">`;
 
-  // Linhas de fundo com os valores do eixo Y
-  for (let k = 0; k <= 4; k++) {
-    const valor = (maiorValor * k) / 4;
+  // Linhas de grade horizontais e rótulos redondos do eixo Y
+  for (let k = 0; k <= escala.linhas; k++) {
+    const valor = Math.min(escala.teto, escala.passo * k);
     const y = posicaoY(valor).toFixed(1);
     svg += `<line x1="${esquerda}" y1="${y}" x2="${largura - direita}" y2="${y}" class="grade"/>`;
-    svg += `<text x="${esquerda - 8}" y="${y}" class="eixo-valor" text-anchor="end" dominant-baseline="middle">R$ ${Math.round(valor).toLocaleString('pt-BR')}</text>`;
+    svg += `<text x="${esquerda - 10}" y="${y}" class="eixo-valor" text-anchor="end" dominant-baseline="middle">R$ ${Math.round(valor).toLocaleString('pt-BR')}</text>`;
   }
 
   // Eixos X e Y
   svg += `<line x1="${esquerda}" y1="${topo}" x2="${esquerda}" y2="${topo + alturaUtil}" class="eixo"/>`;
   svg += `<line x1="${esquerda}" y1="${topo + alturaUtil}" x2="${largura - direita}" y2="${topo + alturaUtil}" class="eixo"/>`;
 
-  // Linha do gráfico
+  // Linha da série
   const coordenadas = pontos.map((p, i) => `${posicaoX(i).toFixed(1)},${posicaoY(p.total).toFixed(1)}`).join(' ');
   svg += `<polyline points="${coordenadas}" class="serie"/>`;
 
-  // Bolinhas, valores e nomes dos dias
+  // Controle para evitar sobreposição de rótulos no eixo X e valores acima dos pontos
+  const espacoRealX = larguraUtil / Math.max(1, pontos.length - 1);
+  const passoRotuloX = Math.max(1, Math.ceil(68 / espacoRealX));
+  const ultimoIndice = pontos.length - 1;
+  let ultimoXTextoValor = -999;
+  let ultimoYTextoValor = -999;
+
   pontos.forEach((p, i) => {
-    const x = posicaoX(i).toFixed(1);
-    const y = posicaoY(p.total);
-    svg += `<circle cx="${x}" cy="${y.toFixed(1)}" r="5" class="ponto"><title>${esc(p.rotulo)}: ${dinheiro(p.total)}</title></circle>`;
+    const xNum = posicaoX(i);
+    const yNum = posicaoY(p.total);
+    const x = xNum.toFixed(1);
+    const y = yNum.toFixed(1);
+
+    svg += `<circle cx="${x}" cy="${y}" r="5" class="ponto"><title>${esc(p.rotulo)}: ${dinheiro(p.total)}</title></circle>`;
+
     if (p.total > 0) {
-      svg += `<text x="${x}" y="${(y - 10).toFixed(1)}" class="valor-ponto" text-anchor="middle">${dinheiro(p.total)}</text>`;
+      let deslocamentoY = 12;
+      if (xNum - ultimoXTextoValor < 86 && Math.abs(yNum - ultimoYTextoValor) < 20) {
+        deslocamentoY = 26;
+      }
+      const yTexto = (yNum - deslocamentoY).toFixed(1);
+      svg += `<text x="${x}" y="${yTexto}" class="valor-ponto" text-anchor="middle">${dinheiro(p.total)}</text>`;
+      ultimoXTextoValor = xNum;
+      ultimoYTextoValor = yNum;
     }
-    svg += `<text x="${x}" y="${topo + alturaUtil + 18}" class="eixo-valor" text-anchor="middle">${esc(p.rotulo)}</text>`;
+
+    const ehUltimo = i === ultimoIndice;
+    const pertoDoUltimo = !ehUltimo && (ultimoIndice - i) * espacoRealX < 56;
+    if (ehUltimo || (i % passoRotuloX === 0 && !pertoDoUltimo)) {
+      svg += `<text x="${x}" y="${topo + alturaUtil + 20}" class="eixo-valor" text-anchor="middle">${esc(p.rotulo)}</text>`;
+    }
   });
 
-  return svg + '</svg>';
+  svg += '</svg>';
+  return { svg, escala, largura, altura };
 }
 
 function mostrarFaturamento() {
@@ -229,21 +521,15 @@ function mostrarFaturamento() {
   $('fat-ticket').textContent = dinheiro(ticketMedio);
   $('fat-lucro').textContent = dinheiro(lucro);
 
-  // Gráfico: soma das vendas de cada um dos últimos 7 dias
-  const dias = [];
-  for (let i = 6; i >= 0; i--) {
-    const dia = new Date();
-    dia.setDate(dia.getDate() - i);
+  const serie = montarSerieDoGrafico();
+  $('titulo-grafico-fat').textContent = serie.titulo;
 
-    let total = 0;
-    movimentos.forEach((m) => {
-      if (m.tipo === 'venda' && new Date(m.data).toDateString() === dia.toDateString()) {
-        total += m.valor;
-      }
-    });
-    dias.push({ rotulo: dia.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' }), total });
-  }
-  $('grafico-dias').innerHTML = desenharGrafico(dias);
+  const resultadoGrafico = desenharGrafico(serie.pontos);
+  $('grafico-dias').innerHTML = resultadoGrafico.svg;
+  $('legenda-grafico-fat').textContent =
+    `Escala Y: R$ 0 até R$ ${Math.round(resultadoGrafico.escala.teto).toLocaleString('pt-BR')} · ` +
+    `${serie.pontos.length} ${serie.unidade} no eixo X · Área ${resultadoGrafico.largura}×${resultadoGrafico.altura}px`;
+  atualizarControlesZoom();
 
   // Os 5 produtos que mais faturaram no período
   const somaPorProduto = {};
@@ -439,7 +725,8 @@ async function salvarProduto(evento) {
 
   if (deuCerto) {
     $('dialog-produto').close();
-    carregarDados();
+    await carregarDados({ silencioso: true });
+    notificarOutrasAbas('estoque');
   }
 }
 
@@ -448,11 +735,12 @@ async function excluirProduto(id) {
   if (!confirm(`Excluir "${produto.nome}"? O histórico de movimentações será mantido.`)) return;
 
   const resposta = await fetch('/api/produtos/' + id, { method: 'DELETE' });
-  if (resposta.status === 401) {
-    window.location.href = '/admin/login';
+  if (!resposta.ok) {
+    alert('Não foi possível excluir o produto.');
     return;
   }
-  carregarDados();
+  await carregarDados({ silencioso: true });
+  notificarOutrasAbas('estoque');
 }
 
 // Diminui a imagem enviada (máx. 600px) para não pesar no banco
@@ -487,7 +775,8 @@ async function registrarMovimentacao(evento) {
 
   if (await enviarParaServidor('/api/movimentos', 'POST', dados)) {
     $('form-movimento').reset();
-    carregarDados();
+    await carregarDados({ silencioso: true });
+    notificarOutrasAbas('estoque');
   }
 }
 
@@ -509,6 +798,33 @@ $('form-movimento').addEventListener('submit', registrarMovimentacao);
 $('busca').addEventListener('input', mostrarProdutos);
 $('filtro-categoria').addEventListener('change', mostrarProdutos);
 $('fat-periodo').addEventListener('change', mostrarFaturamento);
+
+// Controles manuais dos eixos X e Y do gráfico
+function ajustarZoom(eixo, delta) {
+  if (eixo === 'x') {
+    zoomX = Math.min(ZOOM_X_MAX, Math.max(ZOOM_X_MIN, Math.round((zoomX + delta) * 10) / 10));
+  } else {
+    zoomY = Math.min(ZOOM_Y_MAX, Math.max(ZOOM_Y_MIN, Math.round((zoomY + delta) * 10) / 10));
+  }
+  mostrarFaturamento();
+}
+
+$('zoom-x-menos').addEventListener('click', () => ajustarZoom('x', -PASSO_ZOOM));
+$('zoom-x-mais').addEventListener('click', () => ajustarZoom('x', PASSO_ZOOM));
+$('zoom-y-menos').addEventListener('click', () => ajustarZoom('y', -PASSO_ZOOM));
+$('zoom-y-mais').addEventListener('click', () => ajustarZoom('y', PASSO_ZOOM));
+$('zoom-resetar').addEventListener('click', () => {
+  zoomX = 1;
+  zoomY = 1;
+  mostrarFaturamento();
+});
+
+let temporizadorResize = null;
+window.addEventListener('resize', () => {
+  if ($('faturamento').hidden) return;
+  clearTimeout(temporizadorResize);
+  temporizadorResize = setTimeout(mostrarFaturamento, 150);
+});
 
 // Foto por caminho/URL digitado
 $('prod-foto').addEventListener('input', () => definirFoto($('prod-foto').value.trim()));
@@ -553,7 +869,36 @@ $('grid-produtos').addEventListener('click', (evento) => {
 });
 
 
-// ---------- Início ----------
+// ---------- Início e atualização automática ----------
+
+if (canalSync) {
+  canalSync.addEventListener('message', (evento) => {
+    if (evento.data && evento.data.origem === 'vitrine') {
+      carregarDados({ silencioso: true, avisarSeMudou: true });
+    }
+  });
+}
+
+window.addEventListener('storage', (evento) => {
+  if (evento.key !== CHAVE_SYNC_LOCAL || !evento.newValue) return;
+  try {
+    const dados = JSON.parse(evento.newValue);
+    if (dados.origem === 'vitrine') {
+      carregarDados({ silencioso: true, avisarSeMudou: true });
+    }
+  } catch (e) {
+    // Ignora JSON inválido
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    verificarAtualizacaoAdmin(false);
+  }
+});
+
+window.addEventListener('focus', () => verificarAtualizacaoAdmin(false));
+setInterval(() => verificarAtualizacaoAdmin(false), INTERVALO_ATUALIZACAO_MS);
 
 const opcoesDeCategoria = CATEGORIAS.map((c) => `<option value="${c}">${c}</option>`).join('');
 $('filtro-categoria').innerHTML = '<option value="">Todas as categorias</option>' + opcoesDeCategoria;

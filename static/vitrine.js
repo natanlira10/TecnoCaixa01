@@ -1,16 +1,52 @@
 // =============================================================
-// TecnoCaixa - Vitrine de Vendas, Carrinho, Login e Pagamento Simulado
+// TechnoCaixa - Vitrine de Vendas, Carrinho e Pagamento Simulado
 // =============================================================
 
 const CATEGORIAS = ['Computadores', 'Monitores', 'Periféricos', 'Peças', 'Acessórios'];
 const CHAVE_CARRINHO = 'tecnocaixa_carrinho';
+const CHAVE_MEUS_PEDIDOS = 'technocaixa_meus_pedidos';
 const NOMES_PAGAMENTO = { pix: 'Pix', cartao: 'Cartão de Crédito', boleto: 'Boleto' };
 
 let produtos = [];
 let categoriaSelecionada = '';
-let clienteLogado = null;
 let carrinho = carregarCarrinho();
-let continuarPagamentoAposLogin = false;
+
+// Controle de atualização automática em tempo real (sem precisar apertar F5)
+let ultimaVersaoVitrine = '';
+let verificandoVitrine = false;
+let temporizadorToast = null;
+const INTERVALO_ATUALIZACAO_MS = 4000;
+const CANAL_SYNC_NOME = 'technocaixa_sync';
+const CHAVE_SYNC_LOCAL = 'technocaixa_sync_ping';
+const canalSync = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(CANAL_SYNC_NOME) : null;
+
+function notificarOutrasAbas(tipo) {
+  const evento = { origem: 'vitrine', tipo, momento: Date.now() };
+  try {
+    if (canalSync) canalSync.postMessage(evento);
+    localStorage.setItem(CHAVE_SYNC_LOCAL, JSON.stringify(evento));
+  } catch (e) {
+    // Ignora caso o navegador bloqueie o armazenamento local
+  }
+}
+
+function mostrarToast(mensagem) {
+  let toast = $('toast-atualizacao');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast-atualizacao';
+    toast.className = 'toast-atualizacao';
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    document.body.appendChild(toast);
+  }
+  toast.textContent = mensagem;
+  toast.classList.add('visivel');
+  clearTimeout(temporizadorToast);
+  temporizadorToast = setTimeout(() => {
+    toast.classList.remove('visivel');
+  }, 3000);
+}
 
 function $(id) {
   return document.getElementById(id);
@@ -247,100 +283,108 @@ function mostrarVitrine() {
   }
 }
 
-async function carregarProdutos() {
-  try {
-    const resposta = await fetch('/api/vitrine/produtos');
-    produtos = await resposta.json();
-    sincronizarCarrinhoComEstoque();
-    mostrarVitrine();
-  } catch (e) {
-    $('vit-grid').innerHTML = '<div class="vazio">Não foi possível carregar os produtos da vitrine.</div>';
-  }
-}
-
-// ---------- Conta do Cliente ----------
-
-function atualizarTopoCliente() {
-  const area = $('area-cliente');
-  if (clienteLogado) {
-    const primeiroNome = clienteLogado.nome.split(' ')[0];
-    area.innerHTML = `
-      <span class="cliente-saudacao">Olá, <strong>${esc(primeiroNome)}</strong></span>
-      <button type="button" class="btn-topo" id="btn-meus-pedidos">Meus pedidos</button>
-      <button type="button" class="btn-topo" id="btn-cliente-sair">Sair</button>
-    `;
-    $('btn-meus-pedidos').addEventListener('click', abrirMeusPedidos);
-    $('btn-cliente-sair').addEventListener('click', fazerLogoutCliente);
-  } else {
-    area.innerHTML = '<button type="button" class="btn-topo" id="btn-abrir-login">Entrar / Cadastrar</button>';
-    $('btn-abrir-login').addEventListener('click', () => {
-      continuarPagamentoAposLogin = false;
-      abrirModalLogin('entrar');
-    });
-  }
-}
-
-async function carregarSessaoCliente() {
-  try {
-    const resposta = await fetch('/api/cliente/eu');
-    const dados = await resposta.json();
-    clienteLogado = dados.logado ? dados.cliente : null;
-  } catch (e) {
-    clienteLogado = null;
-  }
-  atualizarTopoCliente();
-}
-
-function alternarAbaAuth(aba) {
-  const entrar = aba === 'entrar';
-  $('tab-entrar').classList.toggle('ativa', entrar);
-  $('tab-cadastrar').classList.toggle('ativa', !entrar);
-  $('form-cliente-login').hidden = !entrar;
-  $('form-cliente-cadastro').hidden = entrar;
-  $('auth-aviso').hidden = true;
-}
-
-function abrirModalLogin(aba) {
-  alternarAbaAuth(aba || 'entrar');
-  $('dialog-login-cliente').showModal();
-}
-
-function mostrarErroAuth(mensagem) {
-  $('auth-aviso').textContent = mensagem;
-  $('auth-aviso').hidden = false;
-}
-
-async function enviarAuthCliente(url, payload) {
-  $('auth-aviso').hidden = true;
-  const resposta = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  const dados = await resposta.json();
-
-  if (!resposta.ok) {
-    mostrarErroAuth(dados.erro || 'Não foi possível concluir o acesso.');
+function atualizarResumoPagamento() {
+  if (!$('dialog-pagamento').open || $('pag-formulario-etapa').hidden) return;
+  if (carrinho.length === 0) {
+    $('dialog-pagamento').close();
+    mostrarToast('⚠️ Os itens do carrinho esgotaram no estoque.');
     return;
   }
 
-  clienteLogado = dados.cliente;
-  atualizarTopoCliente();
-  $('dialog-login-cliente').close();
+  $('pag-lista-itens').innerHTML = carrinho
+    .map((item) => {
+      const p = buscarProduto(item.produtoId);
+      if (!p) return '';
+      return `<li>${item.quantidade}x ${esc(p.nome)} — <strong>${dinheiro(p.preco * item.quantidade)}</strong></li>`;
+    })
+    .join('');
+  $('pag-total-valor').textContent = dinheiro(calcularTotalCarrinho());
+}
 
-  if (continuarPagamentoAposLogin) {
-    continuarPagamentoAposLogin = false;
-    abrirModalPagamento();
+async function carregarProdutos(opcoes = {}) {
+  const assinaturaAntes = JSON.stringify(
+    produtos.map((p) => [p.id, p.sku, p.nome, p.categoria, p.quantidade, p.preco, p.foto])
+  );
+
+  try {
+    const resposta = await fetch('/api/vitrine/produtos', { cache: 'no-store' });
+    if (!resposta.ok) throw new Error('Erro ao buscar produtos');
+
+    const novaVersao = resposta.headers.get('X-Versao-Vitrine') || '';
+    const novosProdutos = await resposta.json();
+    const assinaturaDepois = JSON.stringify(
+      novosProdutos.map((p) => [p.id, p.sku, p.nome, p.categoria, p.quantidade, p.preco, p.foto])
+    );
+
+    produtos = novosProdutos;
+    if (novaVersao) ultimaVersaoVitrine = novaVersao;
+
+    sincronizarCarrinhoComEstoque();
+    mostrarVitrine();
+
+    if ($('dialog-carrinho').open) {
+      desenharCarrinho();
+    }
+    atualizarResumoPagamento();
+
+    if (opcoes.avisarSeMudou && assinaturaAntes !== '[]' && assinaturaAntes !== assinaturaDepois) {
+      mostrarToast('🔄 Estoque da loja atualizado');
+    }
+  } catch (e) {
+    if (!opcoes.silencioso) {
+      $('vit-grid').innerHTML = '<div class="vazio">Não foi possível carregar os produtos da vitrine.</div>';
+    }
   }
 }
 
-async function fazerLogoutCliente() {
-  await fetch('/api/cliente/logout', { method: 'POST' });
-  clienteLogado = null;
-  atualizarTopoCliente();
+async function verificarAtualizacaoVitrine(forcar = false) {
+  if (verificandoVitrine) return;
+  if (!forcar && document.visibilityState !== 'visible') return;
+
+  verificandoVitrine = true;
+  try {
+    const resposta = await fetch('/api/versao', { cache: 'no-store' });
+    if (!resposta.ok) return;
+    const dados = await resposta.json();
+    if (!dados.vitrine) return;
+
+    if (!ultimaVersaoVitrine) {
+      ultimaVersaoVitrine = dados.vitrine;
+      return;
+    }
+
+    if (forcar || dados.vitrine !== ultimaVersaoVitrine) {
+      await carregarProdutos({ silencioso: true, avisarSeMudou: true });
+      ultimaVersaoVitrine = dados.vitrine;
+    }
+  } catch (e) {
+    // Falha momentânea de rede é ignorada na verificação em segundo plano
+  } finally {
+    verificandoVitrine = false;
+  }
 }
 
 // ---------- Pagamento Simulado e Pedidos ----------
+
+function carregarMeusPedidosLocais() {
+  try {
+    const salvo = localStorage.getItem(CHAVE_MEUS_PEDIDOS);
+    const lista = salvo ? JSON.parse(salvo) : [];
+    return Array.isArray(lista) ? lista : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function salvarPedidoLocal(pedido) {
+  try {
+    const atual = carregarMeusPedidosLocais();
+    atual.unshift(pedido);
+    localStorage.setItem(CHAVE_MEUS_PEDIDOS, JSON.stringify(atual.slice(0, 20)));
+  } catch (e) {
+    // Ignora caso o navegador bloqueie armazenamento local
+  }
+}
 
 function iniciarPagamento() {
   if (carrinho.length === 0) {
@@ -348,14 +392,6 @@ function iniciarPagamento() {
     return;
   }
   $('dialog-carrinho').close();
-
-  if (!clienteLogado) {
-    continuarPagamentoAposLogin = true;
-    abrirModalLogin('entrar');
-    mostrarErroAuth('Faça login ou crie sua conta para realizar o pagamento.');
-    return;
-  }
-
   abrirModalPagamento();
 }
 
@@ -363,9 +399,6 @@ function abrirModalPagamento() {
   $('pag-formulario-etapa').hidden = false;
   $('pag-comprovante-etapa').hidden = true;
   $('pag-erro').hidden = true;
-
-  $('pag-cliente-info').innerHTML =
-    `Comprador: <strong>${esc(clienteLogado.nome)}</strong> (${esc(clienteLogado.email)})`;
 
   $('pag-lista-itens').innerHTML = carrinho
     .map((item) => {
@@ -391,6 +424,8 @@ async function confirmarPagamentoSimulado(evento) {
   $('pag-erro').hidden = true;
 
   const formaPagamento = document.querySelector('input[name="formaPagamento"]:checked')?.value || 'pix';
+  const clienteNome = $('pag-nome').value.trim();
+  const clienteEmail = $('pag-email').value.trim();
   const endereco = $('pag-endereco').value.trim();
   const botao = $('btn-confirmar-pagamento');
   botao.disabled = true;
@@ -402,21 +437,12 @@ async function confirmarPagamentoSimulado(evento) {
       body: JSON.stringify({
         itens: carrinho,
         formaPagamento,
+        clienteNome,
+        clienteEmail,
         endereco
       })
     });
     const dados = await resposta.json();
-
-    if (resposta.status === 401) {
-      $('dialog-pagamento').close();
-      clienteLogado = null;
-      atualizarTopoCliente();
-      continuarPagamentoAposLogin = true;
-      abrirModalLogin('entrar');
-      mostrarErroAuth(dados.erro || 'Faça login para finalizar sua compra.');
-      botao.disabled = false;
-      return;
-    }
 
     if (!resposta.ok) {
       $('pag-erro').textContent = dados.erro || 'Não foi possível concluir o pedido.';
@@ -426,10 +452,12 @@ async function confirmarPagamentoSimulado(evento) {
       return;
     }
 
-    // Limpa carrinho e recarrega produtos para atualizar estoque na vitrine
+    // Salva recibo no navegador, limpa carrinho, atualiza estoque e avisa o painel admin
+    salvarPedidoLocal(dados);
     carrinho = [];
     salvarCarrinho();
-    await carregarProdutos();
+    await carregarProdutos({ silencioso: true });
+    notificarOutrasAbas('pedido');
 
     // Mostra comprovante da compra simulada
     $('pag-formulario-etapa').hidden = true;
@@ -448,41 +476,29 @@ async function confirmarPagamentoSimulado(evento) {
   botao.disabled = false;
 }
 
-async function abrirMeusPedidos() {
+function abrirMeusPedidos() {
   const lista = $('lista-meus-pedidos');
-  lista.innerHTML = '<p class="ajuda-modal">Carregando seus pedidos...</p>';
+  const pedidos = carregarMeusPedidosLocais();
   $('dialog-meus-pedidos').showModal();
 
-  try {
-    const resposta = await fetch('/api/cliente/pedidos');
-    if (resposta.status === 401) {
-      $('dialog-meus-pedidos').close();
-      abrirModalLogin('entrar');
-      return;
-    }
-    const pedidos = await resposta.json();
-
-    if (pedidos.length === 0) {
-      lista.innerHTML = '<p class="ajuda-modal">Você ainda não realizou nenhum pedido simulado.</p>';
-      return;
-    }
-
-    lista.innerHTML = pedidos
-      .map((ped) => `
-        <div class="card-pedido-cliente">
-          <div class="card-pedido-topo">
-            <strong>${esc(ped.codigo)} · ${new Date(ped.data).toLocaleString('pt-BR')}</strong>
-            <span class="selo-aprovado">Aprovado (${esc(NOMES_PAGAMENTO[ped.formaPagamento] || ped.formaPagamento)})</span>
-          </div>
-          <ul class="lista-resumo-pag">
-            ${ped.itens.map((i) => `<li>${i.quantidade}x ${esc(i.produtoNome)} (${dinheiro(i.subtotal)})</li>`).join('')}
-          </ul>
-          <strong>Total: ${dinheiro(ped.total)}</strong>
-        </div>`)
-      .join('');
-  } catch (e) {
-    lista.innerHTML = '<p class="ajuda-modal">Não foi possível carregar seus pedidos.</p>';
+  if (pedidos.length === 0) {
+    lista.innerHTML = '<p class="ajuda-modal">Você ainda não realizou nenhum pedido simulado neste navegador.</p>';
+    return;
   }
+
+  lista.innerHTML = pedidos
+    .map((ped) => `
+      <div class="card-pedido-cliente">
+        <div class="card-pedido-topo">
+          <strong>${esc(ped.codigo)} · ${new Date(ped.data).toLocaleString('pt-BR')}</strong>
+          <span class="selo-aprovado">Aprovado (${esc(NOMES_PAGAMENTO[ped.formaPagamento] || ped.formaPagamento)})</span>
+        </div>
+        <ul class="lista-resumo-pag">
+          ${ped.itens.map((i) => `<li>${i.quantidade}x ${esc(i.produtoNome)} (${dinheiro(i.subtotal)})</li>`).join('')}
+        </ul>
+        <strong>Total: ${dinheiro(ped.total)}</strong>
+      </div>`)
+    .join('');
 }
 
 // ---------- Eventos da página ----------
@@ -529,26 +545,7 @@ $('carrinho-conteudo').addEventListener('click', (evento) => {
 });
 
 $('btn-ir-pagamento').addEventListener('click', iniciarPagamento);
-
-$('tab-entrar').addEventListener('click', () => alternarAbaAuth('entrar'));
-$('tab-cadastrar').addEventListener('click', () => alternarAbaAuth('cadastrar'));
-
-$('form-cliente-login').addEventListener('submit', (evento) => {
-  evento.preventDefault();
-  enviarAuthCliente('/api/cliente/login', {
-    email: $('login-email').value.trim(),
-    senha: $('login-senha').value
-  });
-});
-
-$('form-cliente-cadastro').addEventListener('submit', (evento) => {
-  evento.preventDefault();
-  enviarAuthCliente('/api/cliente/cadastro', {
-    nome: $('cad-nome').value.trim(),
-    email: $('cad-email').value.trim(),
-    senha: $('cad-senha').value
-  });
-});
+$('btn-meus-pedidos').addEventListener('click', abrirMeusPedidos);
 
 document.querySelectorAll('input[name="formaPagamento"]').forEach((radio) => {
   radio.addEventListener('change', atualizarDetalhesMetodoPagamento);
@@ -573,9 +570,37 @@ document.querySelectorAll('[data-fechar]').forEach((botao) => {
   botao.addEventListener('click', () => $(botao.dataset.fechar).close());
 });
 
-// ---------- Início ----------
+// ---------- Início e atualização automática ----------
+
+if (canalSync) {
+  canalSync.addEventListener('message', (evento) => {
+    if (evento.data && evento.data.origem === 'admin') {
+      carregarProdutos({ silencioso: true, avisarSeMudou: true });
+    }
+  });
+}
+
+window.addEventListener('storage', (evento) => {
+  if (evento.key !== CHAVE_SYNC_LOCAL || !evento.newValue) return;
+  try {
+    const dados = JSON.parse(evento.newValue);
+    if (dados.origem === 'admin') {
+      carregarProdutos({ silencioso: true, avisarSeMudou: true });
+    }
+  } catch (e) {
+    // Ignora JSON inválido
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    verificarAtualizacaoVitrine(false);
+  }
+});
+
+window.addEventListener('focus', () => verificarAtualizacaoVitrine(false));
+setInterval(() => verificarAtualizacaoVitrine(false), INTERVALO_ATUALIZACAO_MS);
 
 desenharCategorias();
 atualizarBadgeCarrinho();
-carregarSessaoCliente();
 carregarProdutos();

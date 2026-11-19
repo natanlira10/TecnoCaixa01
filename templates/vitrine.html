@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TecnoCaixa - Vitrine de Informática e Hardware</title>
+  <title>TechnoCaixa - Vitrine de Informática e Hardware</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='vitrine.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 </head>
@@ -14,7 +14,7 @@
     <div class="cabecalho-interno">
       <a class="logo" href="/">
         <span class="logo-icone">🖥️</span>
-        TecnoCaixa
+        TechnoCaixa
       </a>
 
       <nav class="menu">
@@ -24,9 +24,7 @@
       </nav>
 
       <div class="acoes-topo">
-        <div id="area-cliente" class="area-cliente">
-          <button type="button" class="btn-topo" id="btn-abrir-login">Entrar / Cadastrar</button>
-        </div>
+        <button type="button" class="btn-topo" id="btn-meus-pedidos">🧾 Meus pedidos</button>
         <button type="button" class="btn-carrinho" id="btn-abrir-carrinho">
           🛒 Carrinho <span class="badge-carrinho" id="vit-qtd-carrinho">0</span>
         </button>
@@ -37,7 +35,7 @@
   <!-- Faixa de apresentação -->
   <section class="destaque">
     <div class="destaque-interno">
-      <span class="selo-destaque">⚡ Loja oficial TecnoCaixa</span>
+      <span class="selo-destaque">⚡ Loja oficial TechnoCaixa</span>
       <h1>Monte seu setup com hardware de ponta</h1>
       <p>Computadores, monitores, placas de vídeo, processadores e periféricos com estoque atualizado em tempo real e checkout de demonstração.</p>
     </div>
@@ -72,7 +70,7 @@
   <!-- Rodapé -->
   <footer class="rodape">
     <div class="rodape-interno">
-      <span>© 2026 TecnoCaixa · Vitrine, estoque e faturamento</span>
+      <span>© 2026 TechnoCaixa · Vitrine, estoque e faturamento</span>
       <span>Projeto AV3 · Faculdade Estadual Piauí (PIT)</span>
     </div>
   </footer>
@@ -96,50 +94,7 @@
     </div>
   </dialog>
 
-  <!-- Modal 2: Login e Cadastro do Cliente -->
-  <dialog id="dialog-login-cliente" class="modal-vitrine modal-pequeno">
-    <div class="modal-topo">
-      <h2>👤 Conta do Cliente</h2>
-      <button type="button" class="btn-fechar-modal" data-fechar="dialog-login-cliente">✕</button>
-    </div>
-
-    <div class="abas-auth">
-      <button type="button" class="aba-auth ativa" id="tab-entrar">Entrar</button>
-      <button type="button" class="aba-auth" id="tab-cadastrar">Criar conta</button>
-    </div>
-
-    <p class="aviso-auth" id="auth-aviso" hidden></p>
-
-    <!-- Formulário de Login -->
-    <form id="form-cliente-login" class="form-modal">
-      <p class="ajuda-modal">Entre com sua conta para finalizar o pagamento simulado.</p>
-      <label>E-mail
-        <input type="email" id="login-email" maxlength="120" required placeholder="seu@email.com">
-      </label>
-      <label>Senha
-        <input type="password" id="login-senha" required placeholder="Sua senha">
-      </label>
-      <p class="dica-demo">Conta de teste: <strong>cliente@tecnocaixa.com</strong> · senha: <strong>cliente123</strong></p>
-      <button type="submit" class="btn-primario">Entrar</button>
-    </form>
-
-    <!-- Formulário de Cadastro -->
-    <form id="form-cliente-cadastro" class="form-modal" hidden>
-      <p class="ajuda-modal">Crie uma conta rápida de cliente para comprar na TecnoCaixa.</p>
-      <label>Nome completo
-        <input type="text" id="cad-nome" maxlength="100" required placeholder="Seu nome">
-      </label>
-      <label>E-mail
-        <input type="email" id="cad-email" maxlength="120" required placeholder="seu@email.com">
-      </label>
-      <label>Senha (mínimo 6 caracteres)
-        <input type="password" id="cad-senha" minlength="6" required placeholder="Crie uma senha">
-      </label>
-      <button type="submit" class="btn-primario">Criar conta e entrar</button>
-    </form>
-  </dialog>
-
-  <!-- Modal 3: Checkout / Pagamento Simulado -->
+  <!-- Modal 2: Checkout / Pagamento Simulado -->
   <dialog id="dialog-pagamento" class="modal-vitrine">
     <div class="modal-topo">
       <h2>💳 Pagamento Simulado</h2>
@@ -152,7 +107,6 @@
       </div>
 
       <div class="resumo-checkout">
-        <p id="pag-cliente-info"></p>
         <ul id="pag-lista-itens" class="lista-resumo-pag"></ul>
         <div class="pag-total-linha">
           <span>Total a pagar</span>
@@ -161,6 +115,12 @@
       </div>
 
       <form id="form-pagamento" class="form-modal">
+        <label>Seu nome (opcional)
+          <input type="text" id="pag-nome" maxlength="100" placeholder="Ex.: Natan Lira">
+        </label>
+        <label>E-mail (opcional)
+          <input type="email" id="pag-email" maxlength="120" placeholder="Ex.: seu@email.com">
+        </label>
         <label>Endereço de entrega (simulado, opcional)
           <input type="text" id="pag-endereco" maxlength="200" placeholder="Ex.: Rua das Flores, 120 - Centro">
         </label>

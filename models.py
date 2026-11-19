@@ -7,11 +7,11 @@ db = SQLAlchemy()
 
 
 # ---------------------------------------------------------------
-# TecnoCaixa - Vitrine, controle de estoque e faturamento
+# TechnoCaixa - Vitrine, controle de estoque e faturamento
 #
 # Modelo (3FN):
 #   categoria 1 ---- N produto 1 ---- N movimento
-#   usuario   1 ---- N pedido  1 ---- N item_pedido N ---- 1 produto
+#   pedido    1 ---- N item_pedido N ---- 1 produto
 #   contato (registros do formulário do site, sem relacionamento)
 # ---------------------------------------------------------------
 
@@ -150,33 +150,8 @@ class Contato(db.Model):
         }
 
 
-class Usuario(db.Model):
-    """Contas de clientes da vitrine e de administradores do painel."""
-    __tablename__ = "usuario"
-    __table_args__ = (
-        db.CheckConstraint("tipo IN ('cliente', 'admin')", name="ck_usuario_tipo"),
-    )
-
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    senha_hash = db.Column(db.String(255), nullable=False)
-    tipo = db.Column(db.String(10), nullable=False, default="cliente")  # cliente | admin
-    criado_em = db.Column(db.DateTime(timezone=True), nullable=False, default=agora)
-
-    pedidos = db.relationship("Pedido", back_populates="usuario")
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "nome": self.nome,
-            "email": self.email,
-            "tipo": self.tipo
-        }
-
-
 class Pedido(db.Model):
-    """Compras simuladas realizadas pelos clientes logados na vitrine."""
+    """Compras simuladas realizadas diretamente na vitrine."""
     __tablename__ = "pedido"
     __table_args__ = (
         db.CheckConstraint("forma_pagamento IN ('pix', 'cartao', 'boleto')", name="ck_pedido_pagamento"),
@@ -184,14 +159,19 @@ class Pedido(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    usuario_id = db.Column(db.Integer, db.ForeignKey("usuario.id"), nullable=False, index=True)
+    cliente_nome = db.Column(
+        db.String(100),
+        nullable=False,
+        default="Cliente da Vitrine",
+        server_default="Cliente da Vitrine",
+    )
+    cliente_email = db.Column(db.String(120), default="", server_default="")
     data = db.Column(db.DateTime(timezone=True), nullable=False, default=agora)
     forma_pagamento = db.Column(db.String(20), nullable=False)  # pix | cartao | boleto
     total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     status = db.Column(db.String(20), nullable=False, default="aprovado")
     endereco = db.Column(db.String(200), default="")
 
-    usuario = db.relationship("Usuario", back_populates="pedidos")
     itens = db.relationship("ItemPedido", back_populates="pedido", cascade="all, delete-orphan")
 
     def to_dict(self):
@@ -199,8 +179,8 @@ class Pedido(db.Model):
             "id": self.id,
             "codigo": f"TC-{self.id:04d}",
             "data": self.data.isoformat(),
-            "clienteNome": self.usuario.nome,
-            "clienteEmail": self.usuario.email,
+            "clienteNome": self.cliente_nome or "Cliente da Vitrine",
+            "clienteEmail": self.cliente_email or "",
             "formaPagamento": self.forma_pagamento,
             "total": float(self.total or 0),
             "status": self.status,

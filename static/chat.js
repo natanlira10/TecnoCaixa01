@@ -1,5 +1,5 @@
 // =============================================================
-// TecnoCaixa - Widget de Chatbot com IA (Vitrine e Painel Admin)
+// TechnoCaixa - Widget de Chatbot com IA (Vitrine e Painel Admin)
 //
 // Basta colocar <div id="chatbot-widget" data-modo="vitrine">
 // ou <div id="chatbot-widget" data-modo="admin"> na página.
@@ -17,14 +17,14 @@
       endpoint: '/api/chat/vitrine',
       icone: '💬',
       avatar: '⚡',
-      titulo: 'Caio · Assistente Technocaixa',
+      titulo: 'Caio · Assistente TechnoCaixa',
       subtitulo: 'Online · Loja e produtos',
-      dicaBotao: 'Abrir chat da loja Technocaixa',
+      dicaBotao: 'Abrir chat da loja TechnoCaixa',
       placeholder: 'Pergunte sobre placas, teclados, preços...',
       boasVindas:
-        'E aí! Sou o **Caio**, assistente virtual da **Technocaixa**! ⚡\n' +
+        'E aí! Sou o **Caio**, assistente virtual da **TechnoCaixa**! ⚡\n' +
         'Posso te mostrar o estoque atualizado de placas de vídeo, teclados, monitores, PCs e explicar como comprar por aqui. ' +
-        'Lembrando que eu só respondo sobre a **Technocaixa**, beleza?',
+        'Lembrando que eu só respondo sobre a **TechnoCaixa**, beleza?',
       sugestoes: [
         'Quais placas de vídeo têm?',
         'Teclados disponíveis',
@@ -35,14 +35,14 @@
       endpoint: '/api/chat/admin',
       icone: '📊',
       avatar: '🤖',
-      titulo: 'Analista IA · Technocaixa',
+      titulo: 'Analista IA · TechnoCaixa',
       subtitulo: 'Online · Estoque e estatísticas',
       dicaBotao: 'Abrir analista técnico de estoque',
       placeholder: 'Consulte estoque, reposição, lucro...',
       boasVindas:
-        'Olá! Sou o **Analista Técnico da Technocaixa**.\n' +
+        'Olá! Sou o **Analista Técnico da TechnoCaixa**.\n' +
         'Forneço métricas em tempo real sobre estoque, itens abaixo do mínimo, faturamento, lucro e movimentações. ' +
-        'Atendo exclusivamente consultas sobre o **Technocaixa**.',
+        'Atendo exclusivamente consultas sobre o **TechnoCaixa**.',
       sugestoes: [
         'Resumo geral do estoque',
         'Produtos com estoque baixo',
@@ -183,11 +183,6 @@
         })
       });
 
-      if (resposta.status === 401 && modo === 'admin') {
-        window.location.href = '/admin/login';
-        return;
-      }
-
       const dados = await resposta.json();
       if (!resposta.ok) {
         historico.push({
@@ -200,7 +195,7 @@
     } catch (e) {
       historico.push({
         autor: 'bot',
-        texto: 'Erro de conexão com o servidor da Technocaixa.'
+        texto: 'Erro de conexão com o servidor da TechnoCaixa.'
       });
     }
 
