@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contato - TechnoCaixa</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='contato.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body>
+
+  <!-- Cabeçalho com logo e menu -->
+  <header class="cabecalho">
+    <div class="cabecalho-interno">
+      <a class="logo" href="/">
+        <span class="logo-icone">🖥️</span>
+        TechnoCaixa
+      </a>
+      <nav class="menu">
+        <a href="/">Vitrine</a>
+        <a href="/contato" class="ativo">Contato</a>
+        <a href="/admin">Painel Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Faixa de título -->
+  <section class="destaque">
+    <h1>Fale com a TechnoCaixa</h1>
+    <p>Dúvidas sobre produtos, pedidos ou orçamentos? Envie sua mensagem e nossa equipe responde em breve.</p>
+  </section>
+
+  <main class="pagina-contato">
+
+    <!-- Cards de atendimento -->
+    <section class="cards-atendimento">
+      <article class="card-atendimento">
+        <span class="icone">🛒</span>
+        <h3>Vendas</h3>
+        <p>Computadores, monitores, periféricos e peças para montar o seu setup.</p>
+      </article>
+      <article class="card-atendimento">
+        <span class="icone">🛠️</span>
+        <h3>Suporte técnico</h3>
+        <p>Ajuda com compatibilidade de peças, garantia e instalação.</p>
+      </article>
+      <article class="card-atendimento">
+        <span class="icone">📄</span>
+        <h3>Orçamentos</h3>
+        <p>Peça uma cotação para a sua empresa ou para compras em quantidade.</p>
+      </article>
+    </section>
+
+    <!-- Formulário de contato -->
+    <section class="bloco-formulario">
+      <h2>Envie uma mensagem</h2>
+      <p class="ajuda">Os campos com * são obrigatórios.</p>
+
+      <form id="form-contato">
+        <label>Nome *
+          <input type="text" id="c-nome" maxlength="100" required>
+        </label>
+        <label>E-mail *
+          <input type="email" id="c-email" maxlength="120" required>
+        </label>
+        <label>Telefone (opcional)
+          <input type="tel" id="c-telefone" maxlength="20" placeholder="(86) 99999-9999">
+        </label>
+        <label>Assunto *
+          <input type="text" id="c-assunto" maxlength="100" required>
+        </label>
+        <label class="campo-largo">Mensagem *
+          <textarea id="c-mensagem" maxlength="2000" required></textarea>
+          <span class="contador" id="c-contador">0 / 2000</span>
+        </label>
+
+        <p class="mensagem-form" id="c-aviso" role="status" hidden></p>
+        <button class="btn" type="submit" id="c-enviar">Enviar mensagem</button>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- Rodapé -->
+  <footer class="rodape">
+    <div class="rodape-interno">
+      <span>© 2026 TechnoCaixa · Controle de estoque e faturamento</span>
+      <span>Projeto AV3 · Faculdade Estadual Piauí (PIT)</span>
+    </div>
+  </footer>
+
+  <script>
+    const form = document.getElementById('form-contato');
+    const aviso = document.getElementById('c-aviso');
+    const botao = document.getElementById('c-enviar');
+    const mensagem = document.getElementById('c-mensagem');
+    const contador = document.getElementById('c-contador');
+
+    function mostrarAviso(texto, tipo) {
+      aviso.textContent = texto;
+      aviso.className = 'mensagem-form ' + tipo;
+      aviso.hidden = false;
+    }
+
+    // Contador de caracteres da mensagem
+    mensagem.addEventListener('input', () => {
+      contador.textContent = mensagem.value.length + ' / 2000';
+    });
+
+    form.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      aviso.hidden = true;
+      botao.disabled = true;
+
+      const dados = {
+        nome: document.getElementById('c-nome').value.trim(),
+        email: document.getElementById('c-email').value.trim(),
+        telefone: document.getElementById('c-telefone').value.trim(),
+        assunto: document.getElementById('c-assunto').value.trim(),
+        mensagem: mensagem.value.trim()
+      };
+
+      try {
+        const resposta = await fetch('/api/contatos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dados)
+        });
+        const resultado = await resposta.json();
+
+        if (resposta.ok) {
+          form.reset();
+          contador.textContent = '0 / 2000';
+          mostrarAviso('Mensagem enviada! Responderemos em breve.', 'ok');
+        } else {
+          mostrarAviso(resultado.erro || 'Não foi possível enviar a mensagem.', 'erro');
+        }
+      } catch (e) {
+        mostrarAviso('Erro de conexão com o servidor.', 'erro');
+      }
+
+      botao.disabled = false;
+    });
+  </script>
+
+  <!-- Widget do Chatbot da Vitrine -->
+  <div id="chatbot-widget" data-modo="vitrine"></div>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
+</body>
+</html>

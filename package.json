@@ -1,0 +1,19 @@
+{
+  "name": "trabalho-web-e-banco-de-dados",
+  "version": "1.0.0",
+  "description": "Sistema web de **controle de estoque e faturamento** para uma loja de informática, feito com **Flask**, **SQLAlchemy** e banco **PostgreSQL no Neon**.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/natanlira10/TecnoCaixa.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/natanlira10/TecnoCaixa/issues"
+  },
+  "homepage": "https://github.com/natanlira10/TecnoCaixa#readme"
+}

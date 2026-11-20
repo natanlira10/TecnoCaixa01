@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TechnoCaixa - Painel Administrativo</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body>
+
+  <div class="app">
+
+    <!-- Menu lateral -->
+    <aside class="sidebar">
+      <div class="logo">TechnoCaixa</div>
+      <nav class="menu-lateral">
+        <a href="#painel" data-aba="painel">📊 Painel</a>
+        <a href="#faturamento" data-aba="faturamento">💰 Faturamento</a>
+        <a href="#produtos" data-aba="produtos">📦 Produtos</a>
+        <a href="#movimentacoes" data-aba="movimentacoes">🔄 Movimentações</a>
+        <a href="#pedidos" data-aba="pedidos">🧾 Pedidos</a>
+      </nav>
+      <div class="rodape-lateral rodape-admin">
+        <p class="rodape-usuario">Painel administrativo</p>
+        <div class="links-admin">
+          <a href="/">🛒 Ver vitrine</a>
+        </div>
+      </div>
+    </aside>
+
+    <div class="conteudo">
+
+      <header class="barra-topo">
+        <h1 id="titulo-aba">Painel</h1>
+        <button class="btn" id="novo-produto">+ Novo produto</button>
+      </header>
+
+      <main>
+        <!-- Painel -->
+        <section id="painel" class="aba">
+          <div class="kpis">
+            <div class="kpi"><span>Produtos cadastrados</span><strong id="kpi-produtos">0</strong></div>
+            <div class="kpi"><span>Unidades em estoque</span><strong id="kpi-unidades">0</strong></div>
+            <div class="kpi"><span>Valor em estoque (custo)</span><strong id="kpi-valor">R$ 0,00</strong></div>
+            <div class="kpi alerta-kpi"><span>Estoque baixo</span><strong id="kpi-baixo">0</strong></div>
+          </div>
+
+          <div class="bloco">
+            <h3>Reposição necessária</h3>
+            <ul class="lista-simples" id="lista-baixo"></ul>
+          </div>
+
+          <div class="bloco">
+            <h3>Últimas movimentações</h3>
+            <ul class="lista-simples" id="lista-recentes"></ul>
+          </div>
+        </section>
+
+        <!-- Faturamento -->
+        <section id="faturamento" class="aba" hidden>
+          <div class="filtros">
+            <label>Período
+              <select id="fat-periodo">
+                <option value="7">Últimos 7 dias</option>
+                <option value="30" selected>Últimos 30 dias</option>
+                <option value="90">Últimos 90 dias</option>
+                <option value="0">Todo o período</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="kpis">
+            <div class="kpi"><span>Faturamento</span><strong id="fat-total">R$ 0,00</strong></div>
+            <div class="kpi"><span>Vendas</span><strong id="fat-vendas">0</strong></div>
+            <div class="kpi"><span>Ticket médio</span><strong id="fat-ticket">R$ 0,00</strong></div>
+            <div class="kpi"><span>Lucro bruto estimado</span><strong id="fat-lucro">R$ 0,00</strong></div>
+          </div>
+
+          <div class="bloco">
+            <div class="grafico-topo">
+              <h3 id="titulo-grafico-fat">Faturamento dos últimos 30 dias</h3>
+              <div class="controles-grafico" aria-label="Controles de escala do gráfico">
+                <div class="controle-eixo">
+                  <span>Eixo X:</span>
+                  <button type="button" id="zoom-x-menos" title="Diminuir largura do eixo X">−</button>
+                  <strong id="zoom-x-valor">100%</strong>
+                  <button type="button" id="zoom-x-mais" title="Aumentar largura do eixo X">+</button>
+                </div>
+                <div class="controle-eixo">
+                  <span>Eixo Y:</span>
+                  <button type="button" id="zoom-y-menos" title="Diminuir altura do eixo Y">−</button>
+                  <strong id="zoom-y-valor">100%</strong>
+                  <button type="button" id="zoom-y-mais" title="Aumentar altura do eixo Y">+</button>
+                </div>
+                <button type="button" class="btn-reset-grafico" id="zoom-resetar" title="Voltar à escala automática">Auto</button>
+              </div>
+            </div>
+            <div class="grafico" id="grafico-dias"></div>
+            <p class="legenda-grafico" id="legenda-grafico-fat"></p>
+          </div>
+
+          <div class="bloco">
+            <h3>Produtos mais vendidos (no período)</h3>
+            <ul class="lista-simples" id="top-produtos"></ul>
+          </div>
+        </section>
+
+        <!-- Produtos -->
+        <section id="produtos" class="aba" hidden>
+          <div class="filtros">
+            <input type="search" id="busca" placeholder="Buscar por nome, SKU ou local">
+            <select id="filtro-categoria">
+              <option value="">Todas as categorias</option>
+            </select>
+          </div>
+
+          <div class="grid-cards" id="grid-produtos"></div>
+
+          <!-- Aviso sobre as fotos -->
+          <p class="aviso-ia">As imagens dos produtos foram geradas por inteligência artificial (IA) e servem apenas como ilustração.</p>
+        </section>
+
+        <!-- Movimentações -->
+        <section id="movimentacoes" class="aba" hidden>
+          <div class="bloco">
+            <h3>Registrar movimentação</h3>
+            <form id="form-movimento" class="form-linha">
+              <label>Produto
+                <select id="mov-produto" required></select>
+              </label>
+              <label>Tipo
+                <select id="mov-tipo" required>
+                  <option value="entrada">Entrada (compra)</option>
+                  <option value="venda">Venda</option>
+                  <option value="saida">Saída (ajuste/perda)</option>
+                </select>
+              </label>
+              <label>Quantidade
+                <input type="number" id="mov-quantidade" min="1" step="1" required>
+              </label>
+              <label class="largo">Observação
+                <input type="text" id="mov-obs" maxlength="120" placeholder="Ex.: Compra NF 1234, venda, devolução">
+              </label>
+              <button class="btn" type="submit">Registrar</button>
+            </form>
+          </div>
+
+          <div class="tabela-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Produto</th>
+                  <th>Tipo</th>
+                  <th class="num">Qtd.</th>
+                  <th class="num">Valor</th>
+                  <th>Observação</th>
+                </tr>
+              </thead>
+              <tbody id="corpo-movimentos"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Pedidos recebidos pela vitrine -->
+        <section id="pedidos" class="aba" hidden>
+          <div class="tabela-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Data</th>
+                  <th>Cliente</th>
+                  <th>Pagamento</th>
+                  <th>Itens</th>
+                  <th class="num">Total</th>
+                </tr>
+              </thead>
+              <tbody id="corpo-pedidos"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Formulário de produto -->
+  <dialog id="dialog-produto">
+    <form id="form-produto" method="dialog">
+      <h2 id="titulo-produto">Novo produto</h2>
+      <input type="hidden" id="prod-id">
+
+      <div class="foto-edicao">
+        <div class="foto-preview" id="prod-preview">Sem foto</div>
+        <div class="foto-campos">
+          <label>Enviar imagem
+            <input type="file" id="prod-arquivo" accept="image/*">
+          </label>
+          <label>Ou caminho/URL da foto
+            <input type="text" id="prod-foto" placeholder="Ex.: Fotos/Mouse Gamer.jpg">
+          </label>
+          <button type="button" class="btn-secundario" id="remover-foto">Remover foto</button>
+        </div>
+      </div>
+
+      <label>SKU
+        <input type="text" id="prod-sku" maxlength="20" required>
+      </label>
+      <label>Nome
+        <input type="text" id="prod-nome" maxlength="100" required>
+      </label>
+      <label>Categoria
+        <select id="prod-categoria" required></select>
+      </label>
+      <div class="form-duas">
+        <label>Quantidade inicial
+          <input type="number" id="prod-quantidade" min="0" step="1" value="0">
+        </label>
+        <label>Estoque mínimo
+          <input type="number" id="prod-minimo" min="0" step="1" value="0" required>
+        </label>
+      </div>
+      <div class="form-duas">
+        <label>Custo unitário (R$)
+          <input type="number" id="prod-custo" min="0" step="0.01" value="0" required>
+        </label>
+        <label>Preço de venda (R$)
+          <input type="number" id="prod-preco" min="0" step="0.01" value="0" required>
+        </label>
+      </div>
+      <label>Local no estoque
+        <input type="text" id="prod-local" maxlength="40" placeholder="Ex.: Prateleira A1">
+      </label>
+      <p class="ajuda">A quantidade só muda por Entrada/Saída, para manter o histórico correto.</p>
+
+      <div class="acoes-dialog">
+        <button type="button" class="btn-secundario" id="cancelar-produto">Cancelar</button>
+        <button type="submit" class="btn">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Widget do Chatbot Técnico do Admin (bolinha no canto inferior direito) -->
+  <div id="chatbot-widget" data-modo="admin"></div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
+</body>
+</html>
