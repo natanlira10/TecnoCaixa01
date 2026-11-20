@@ -73,6 +73,7 @@ h1, h2, h3 {
   text-decoration: none;
 }
 
+<<<<<<< HEAD
 .logo {
   display: flex;
   align-items: center;
@@ -84,6 +85,8 @@ h1, h2, h3 {
   width: auto;
 }
 
+=======
+>>>>>>> 234389c98a9ae8642eb413fe407cfdf67d3cfd74
 .logo-icone {
   display: inline-flex;
   align-items: center;
