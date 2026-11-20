@@ -54,6 +54,22 @@ h1, h2, h3 {
   text-decoration: none;
 }
 
+.bi { vertical-align: -0.125em; }
+
+.menu-lateral .bi,
+.links-admin .bi { margin-right: 6px; }
+
+.sidebar .logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-imagem {
+  height: 32px;
+  width: auto;
+}
+
 .menu-lateral a:hover {
   background: #2c2c2c;
   color: #fff;

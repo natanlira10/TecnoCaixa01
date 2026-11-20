@@ -6,6 +6,7 @@
   <title>TechnoCaixa - Painel Administrativo</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
 
@@ -13,18 +14,21 @@
 
     <!-- Menu lateral -->
     <aside class="sidebar">
-      <div class="logo">TechnoCaixa</div>
+      <div class="logo">
+        <img class="logo-imagem" src="{{ url_for('static', filename='Fotos/logo.png') }}" alt="TechnoCaixa">
+        TechnoCaixa
+      </div>
       <nav class="menu-lateral">
-        <a href="#painel" data-aba="painel">📊 Painel</a>
-        <a href="#faturamento" data-aba="faturamento">💰 Faturamento</a>
-        <a href="#produtos" data-aba="produtos">📦 Produtos</a>
-        <a href="#movimentacoes" data-aba="movimentacoes">🔄 Movimentações</a>
-        <a href="#pedidos" data-aba="pedidos">🧾 Pedidos</a>
+        <a href="#painel" data-aba="painel"><i class="bi bi-speedometer2"></i> Painel</a>
+        <a href="#faturamento" data-aba="faturamento"><i class="bi bi-cash-coin"></i> Faturamento</a>
+        <a href="#produtos" data-aba="produtos"><i class="bi bi-box-seam"></i> Produtos</a>
+        <a href="#movimentacoes" data-aba="movimentacoes"><i class="bi bi-arrow-left-right"></i> Movimentações</a>
+        <a href="#pedidos" data-aba="pedidos"><i class="bi bi-receipt"></i> Pedidos</a>
       </nav>
       <div class="rodape-lateral rodape-admin">
         <p class="rodape-usuario">Painel administrativo</p>
         <div class="links-admin">
-          <a href="/">🛒 Ver vitrine</a>
+          <a href="/"><i class="bi bi-shop"></i> Ver vitrine</a>
         </div>
       </div>
     </aside>

@@ -73,7 +73,6 @@ h1, h2, h3 {
   text-decoration: none;
 }
 
-<<<<<<< HEAD
 .logo {
   display: flex;
   align-items: center;
@@ -84,9 +83,7 @@ h1, h2, h3 {
   height: 36px;
   width: auto;
 }
-
-=======
->>>>>>> 234389c98a9ae8642eb413fe407cfdf67d3cfd74
+ 
 .logo-icone {
   display: inline-flex;
   align-items: center;
@@ -97,6 +94,32 @@ h1, h2, h3 {
   background: var(--azul);
   font-size: 1.1rem;
 }
+
+html { scroll-behavior: smooth; }
+
+#inicio, #produtos, #sobre { scroll-margin-top: 80px; }
+
+.btn-admin { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+
+.sobre { padding: 56px 16px; background: #f5f7fb; }
+.sobre-interno { max-width: 1100px; margin: 0 auto; text-align: center; }
+.sobre h2 { margin: 0 0 12px; font-size: 1.8rem; }
+.sobre-texto { max-width: 720px; margin: 0 auto 32px; line-height: 1.6; color: #475569; }
+
+.sobre-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+.sobre-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+.sobre-card .bi { font-size: 2rem; color: #2563eb; }
+.sobre-card h3 { margin: 12px 0 8px; }
+.sobre-card p { margin: 0; color: #475569; line-height: 1.5; }
 
 .menu {
   display: flex;

@@ -19,22 +19,23 @@
       </a>
 
       <nav class="menu">
-        <a href="/" class="ativo">Vitrine</a>
+        <a href="/#inicio" class="ativo">Início</a>
+        <a href="/#produtos">Produtos</a>
+        <a href="/#sobre">Sobre</a>
         <a href="/contato">Contato</a>
-        <a href="/admin">Painel Admin</a>
       </nav>
 
       <div class="acoes-topo">
+        <a href="/admin" class="btn-topo btn-admin"><i class="bi bi-speedometer2"></i> Painel Admin</a>
         <button type="button" class="btn-topo" id="btn-meus-pedidos"><i class="bi bi-receipt"></i> Meus pedidos</button>
         <button type="button" class="btn-carrinho" id="btn-abrir-carrinho">
           <i class="bi bi-cart3"></i> Carrinho <span class="badge-carrinho" id="vit-qtd-carrinho">0</span>
         </button>
       </div>
-    </div>
   </header>
 
   <!-- Faixa de apresentação -->
-  <section class="destaque">
+  <section class="destaque" id="inicio">
     <div class="destaque-interno">
       <span class="selo-destaque"><i class="bi bi-lightning-charge-fill"></i> Loja oficial TechnoCaixa</span>
       <h1>Monte seu setup com hardware de ponta</h1>
@@ -42,7 +43,7 @@
     </div>
   </section>
 
-  <main class="pagina-vitrine">
+  <main class="pagina-vitrine" id="produtos">
     <!-- Barra de busca, categorias e ordenação -->
     <section class="controles-vitrine">
       <div class="busca-linha">
@@ -64,9 +65,38 @@
 
     <!-- Grade de produtos da loja -->
     <section class="grid-vitrine" id="vit-grid"></section>
-
-    <p class="aviso-ia">As imagens dos produtos foram geradas por inteligência artificial (IA) e servem apenas como ilustração. Os pagamentos desta vitrine são simulados.</p>
+ 
   </main>
+
+  <section class="sobre" id="sobre">
+    <div class="sobre-interno">
+      <h2>Sobre a TechnoCaixa</h2>
+      <p class="sobre-texto">
+        A TechnoCaixa nasceu da vontade de facilitar a vida de quem quer montar ou renovar
+        o próprio setup sem complicação. Reunimos computadores, monitores, placas de vídeo,
+        periféricos e acessórios em uma vitrine simples, com estoque atualizado em tempo real
+        e atendimento rápido, inclusive por um assistente virtual.
+      </p>
+
+      <div class="sobre-cards">
+        <article class="sobre-card">
+          <i class="bi bi-bullseye"></i>
+          <h3>Nossa missão</h3>
+          <p>Entregar hardware de qualidade com preço justo e informação clara para cada escolha de compra.</p>
+        </article>
+        <article class="sobre-card">
+          <i class="bi bi-box-seam"></i>
+          <h3>Estoque em tempo real</h3>
+          <p>O que aparece na vitrine é o que está disponível. Cada compra dá baixa automática no estoque.</p>
+        </article>
+        <article class="sobre-card">
+          <i class="bi bi-robot"></i>
+          <h3>Atendimento com IA</h3>
+          <p>O Caio, nosso assistente virtual, tira dúvidas sobre produtos e ajuda você a comprar.</p>
+        </article>
+      </div>
+    </div>
+  </section>
 
   <!-- Rodapé -->
   <footer class="rodape">

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contato - TechnoCaixa</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="{{ url_for('static', filename='contato.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
 </head>
@@ -13,14 +14,20 @@
   <header class="cabecalho">
     <div class="cabecalho-interno">
       <a class="logo" href="/">
-        <span class="logo-icone">🖥️</span>
+        <img class="logo-imagem" src="{{ url_for('static', filename='Fotos/logo.png') }}" alt="TechnoCaixa">
         TechnoCaixa
       </a>
+
       <nav class="menu">
-        <a href="/">Vitrine</a>
+        <a href="/#inicio">Início</a>
+        <a href="/#produtos">Produtos</a>
+        <a href="/#sobre">Sobre</a>
         <a href="/contato" class="ativo">Contato</a>
-        <a href="/admin">Painel Admin</a>
       </nav>
+
+      <div class="acoes-topo">
+        <a href="/admin" class="btn-topo btn-admin"><i class="bi bi-speedometer2"></i> Painel Admin</a>
+      </div>
     </div>
   </header>
 
@@ -35,17 +42,17 @@
     <!-- Cards de atendimento -->
     <section class="cards-atendimento">
       <article class="card-atendimento">
-        <span class="icone">🛒</span>
+        <span class="icone"><i class="bi bi-cart3"></i></span>
         <h3>Vendas</h3>
         <p>Computadores, monitores, periféricos e peças para montar o seu setup.</p>
       </article>
       <article class="card-atendimento">
-        <span class="icone">🛠️</span>
+        <span class="icone"><i class="bi bi-tools"></i></span>
         <h3>Suporte técnico</h3>
         <p>Ajuda com compatibilidade de peças, garantia e instalação.</p>
       </article>
       <article class="card-atendimento">
-        <span class="icone">📄</span>
+        <span class="icone"><i class="bi bi-file-earmark-text"></i></span>
         <h3>Orçamentos</h3>
         <p>Peça uma cotação para a sua empresa ou para compras em quantidade.</p>
       </article>

@@ -329,3 +329,28 @@ a {
     align-items: flex-start;
   }
 }
+
+.bi { vertical-align: -0.125em; }
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-imagem {
+  height: 36px;
+  width: auto;
+}
+
+.btn-admin {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-atendimento .icone .bi {
+  font-size: 2rem;
+  color: #2563eb; /* troque pela cor principal do seu CSS */
+}
