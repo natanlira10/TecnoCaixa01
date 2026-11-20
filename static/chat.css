@@ -209,6 +209,10 @@
   border-bottom-right-radius: 4px;
 }
 
+.tc-chat-bolinha .bi { font-size: 1.6rem; }
+.tc-chat-avatar .bi { font-size: 1.2rem; }
+.tc-chat-acoes-topo .bi { font-size: 1rem; }
+
 .tc-chat--admin .tc-chat-bolha--usuario {
   background: #1e1e1e;
 }

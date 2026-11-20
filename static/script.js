@@ -54,7 +54,7 @@ function notificarOutrasAbas(tipo) {
   }
 }
 
-function mostrarToast(mensagem) {
+function mostrarToast(mensagem, icone) {
   let toast = $('toast-atualizacao');
   if (!toast) {
     toast = document.createElement('div');
@@ -64,7 +64,7 @@ function mostrarToast(mensagem) {
     toast.setAttribute('aria-live', 'polite');
     document.body.appendChild(toast);
   }
-  toast.textContent = mensagem;
+  toast.innerHTML = (icone ? `<i class="bi ${icone}"></i> ` : '') + esc(mensagem);
   toast.classList.add('visivel');
   clearTimeout(temporizadorToast);
   temporizadorToast = setTimeout(() => {
@@ -153,9 +153,9 @@ async function carregarDados(opcoes = {}) {
 
     if (opcoes.avisarSeMudou && mudouVersao) {
       if (pedidos.length > qtdPedidosAntes) {
-        mostrarToast('🔔 Novo pedido recebido na vitrine!');
+        mostrarToast('Novo pedido recebido na vitrine!', 'bi-bell-fill');
       } else {
-        mostrarToast('🔄 Estoque e dados atualizados');
+        mostrarToast('Estoque e dados atualizados', 'bi-arrow-repeat');
       }
     }
   } catch (e) {

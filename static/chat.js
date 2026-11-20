@@ -15,14 +15,14 @@
   const CONFIG_MODOS = {
     vitrine: {
       endpoint: '/api/chat/vitrine',
-      icone: '💬',
-      avatar: '⚡',
+      icone: '<i class="bi bi-chat-dots-fill"></i>',
+      avatar: '<i class="bi bi-lightning-charge-fill"></i>',
       titulo: 'Caio · Assistente TechnoCaixa',
       subtitulo: 'Online · Loja e produtos',
       dicaBotao: 'Abrir chat da loja TechnoCaixa',
       placeholder: 'Pergunte sobre placas, teclados, preços...',
       boasVindas:
-        'E aí! Sou o **Caio**, assistente virtual da **TechnoCaixa**! ⚡\n' +
+        'E aí! Sou o **Caio**, assistente virtual da **TechnoCaixa**!\n' +
         'Posso te mostrar o estoque atualizado de placas de vídeo, teclados, monitores, PCs e explicar como comprar por aqui. ' +
         'Lembrando que eu só respondo sobre a **TechnoCaixa**, beleza?',
       sugestoes: [
@@ -33,8 +33,8 @@
     },
     admin: {
       endpoint: '/api/chat/admin',
-      icone: '📊',
-      avatar: '🤖',
+      icone: '<i class="bi bi-bar-chart-line-fill"></i>',
+      avatar: '<i class="bi bi-robot"></i>',
       titulo: 'Analista IA · TechnoCaixa',
       subtitulo: 'Online · Estoque e estatísticas',
       dicaBotao: 'Abrir analista técnico de estoque',
@@ -101,8 +101,8 @@
           </div>
         </div>
         <div class="tc-chat-acoes-topo">
-          <button type="button" id="tc-chat-limpar" title="Reiniciar conversa">↺</button>
-          <button type="button" id="tc-chat-fechar" title="Fechar chat">✕</button>
+          <button type="button" id="tc-chat-limpar" title="Reiniciar conversa"><i class="bi bi-arrow-counterclockwise"></i></button>
+          <button type="button" id="tc-chat-fechar" title="Fechar chat"><i class="bi bi-x-lg"></i></button>
         </div>
       </div>
 
