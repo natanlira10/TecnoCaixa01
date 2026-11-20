@@ -12,7 +12,7 @@ Sistema web de **vitrine e-commerce com pagamento simulado, painel administrativ
 
 ## 🌐 Deploy
 
-**Site no ar:** [https://tecnocaixa.onrender.com](https://tecnocaixa.onrender.com)
+**Site no ar:** [https://SEU-APP.onrender.com](https://SEU-APP.onrender.com)
 
 ## 📋 O que o sistema faz
 
@@ -171,3 +171,7 @@ PostgreSQL no **Neon**. O script de criação está em [`schema.sql`](schema.sql
 | `contato` | Mensagens do formulário de contato | Sem relacionamento |
 
 O `schema.sql` também traz consultas de exemplo (estoque baixo, faturamento por produto, últimas mensagens).
+
+### Diagrama Entidade-Relacionamento (DER)
+
+![DER do banco de dados TechnoCaixa](docs/der.png)
