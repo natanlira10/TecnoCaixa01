@@ -8,7 +8,7 @@ Sistema web de **vitrine e-commerce com pagamento simulado, painel administrativ
 |------|--------|
 | [Natan Lira] | [@natanlira10](https://github.com/natanlira10) |
 | [Nome completo] | [@marcosr1](https://github.com/marcosr1) |
-| [Nome do terceiro integrante] | [@usuario] |
+| [Stephany Ponciano] | [@steponcianodev](https://github.com/steponcianodev) |
 
 ## 🌐 Deploy
 
