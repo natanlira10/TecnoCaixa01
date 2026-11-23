@@ -71,7 +71,7 @@
           <input type="email" id="c-email" maxlength="120" required>
         </label>
         <label>Telefone (opcional)
-          <input type="tel" id="c-telefone" maxlength="20" placeholder="(86) 99999-9999">
+          <input type="tel" id="c-telefone" maxlength="15" pattern="\(\d{2}\) 9\d{4}-\d{4}" title="Use o formato (XX) 9XXXX-XXXX" placeholder="(86) 99999-9999">
         </label>
         <label>Assunto *
           <input type="text" id="c-assunto" maxlength="100" required>
@@ -102,6 +102,23 @@
     const botao = document.getElementById('c-enviar');
     const mensagem = document.getElementById('c-mensagem');
     const contador = document.getElementById('c-contador');
+    const telefone = document.getElementById('c-telefone');
+
+    // Máscara automática para telefone no padrão (XX) 9XXXX-XXXX
+    telefone.addEventListener('input', () => {
+      const digitos = telefone.value.replace(/\D/g, '').slice(0, 11);
+      let formatado = '';
+      if (digitos.length > 0) {
+        formatado = '(' + digitos.slice(0, 2);
+      }
+      if (digitos.length >= 3) {
+        formatado += ') ' + digitos.slice(2, 7);
+      }
+      if (digitos.length >= 8) {
+        formatado += '-' + digitos.slice(7, 11);
+      }
+      telefone.value = formatado;
+    });
 
     function mostrarAviso(texto, tipo) {
       aviso.textContent = texto;
