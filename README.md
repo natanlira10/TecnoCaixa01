@@ -6,13 +6,13 @@ Sistema web de **vitrine e-commerce com pagamento simulado, painel administrativ
 
 | Nome | GitHub |
 |------|--------|
-| [Natan Lira] | [@natanlira10](https://github.com/natanlira10) |
-| [Nome completo] | [@marcosr1](https://github.com/marcosr1) |
-| [Nome do terceiro integrante] | [@usuario] |
+| Natan Lira | [@natanlira10](https://github.com/natanlira10) |
+| Marcos Richelly | [@marcosr1](https://github.com/marcosr1) |
+| Stephany Ponciano   | [@steponcianodev](https://github.com/steponcianodev)] |
 
 ## 🌐 Deploy
 
-**Site no ar:** [https://SEU-APP.onrender.com](https://SEU-APP.onrender.com)
+**Site no ar:** (https://tecnocaixa.onrender.com)
 
 ## 📋 O que o sistema faz
 
